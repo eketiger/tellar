@@ -48,8 +48,10 @@ export class EcsStack extends Stack {
       memoryLimitMiB: props.cfg.taskMemoryMiB,
     });
 
-    // Pull + logs + secrets/ssm reads are on the execution role
-    props.repository.grantPull(this.taskDefinition.executionRole!);
+    // The container image points at our ECR repository; pulling is granted
+    // by the AmazonECSTaskExecutionRolePolicy that CDK attaches to every
+    // FargateTaskDefinition's executionRole automatically. No explicit
+    // grantPull() call is needed (and it fails synth across stack boundaries).
 
     const envFromSsm = {
       NEXTAUTH_URL:                     ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/NEXTAUTH_URL`),

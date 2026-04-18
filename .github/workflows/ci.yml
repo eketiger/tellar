@@ -71,12 +71,16 @@ jobs:
         run: npx -y @redocly/cli lint openapi.yaml
 
       - name: CDK synth & test
-        working-directory: infra
         env:
           CDK_DEFAULT_ACCOUNT: '000000000000'
           CDK_DEFAULT_REGION: us-east-1
         run: |
-          npm install --no-audit --no-fund
-          npx tsc --noEmit
-          npx jest --passWithNoTests
-          npx cdk synth -c env=staging || true
+          # infra is in pnpm-workspace.yaml so its deps were already installed
+          # by `pnpm install` at the top of the job. Use pnpm exec so the CDK
+          # binary resolves from the workspace store; running `npm install`
+          # inside infra/ would clobber pnpm's layout and trigger lifecycle
+          # scripts (rimraf, etc.) on packages that aren't in npm-resolvable
+          # locations → exit 127.
+          pnpm --filter @tellar/infra exec tsc --noEmit
+          pnpm --filter @tellar/infra exec jest --passWithNoTests
+          pnpm --filter @tellar/infra exec cdk synth -c env=staging || true

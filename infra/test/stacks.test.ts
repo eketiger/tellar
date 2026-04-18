@@ -101,9 +101,20 @@ describe('CDK stacks', () => {
 
   it('IAM role is scoped to refs/heads/main', () => {
     const tpl = Template.fromStack(iam);
-    const policy = tpl.toJSON().Resources;
-    const roleResource: any = Object.values(policy).find((r: any) => r.Type === 'AWS::IAM::Role');
-    const sub = roleResource.Properties.AssumeRolePolicyDocument.Statement[0].Condition.StringEquals['token.actions.githubusercontent.com:sub'];
+    const resources = tpl.toJSON().Resources as Record<string, any>;
+    // The OIDC provider's Custom Resource creates its own IAM role too —
+    // filter by name to find the GitHub Actions role specifically.
+    const ghRole = Object.values(resources).find(
+      (r: any) =>
+        r.Type === 'AWS::IAM::Role' &&
+        typeof r.Properties?.RoleName === 'string' &&
+        r.Properties.RoleName.includes('github-actions'),
+    );
+    expect(ghRole).toBeDefined();
+    const sub =
+      ghRole.Properties.AssumeRolePolicyDocument.Statement[0].Condition.StringEquals[
+        'token.actions.githubusercontent.com:sub'
+      ];
     expect(sub).toMatch(/refs\/heads\/main$/);
   });
 
