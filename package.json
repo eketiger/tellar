@@ -1,0 +1,14 @@
+{
+  "name": "tellar",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "db:migrate": "pnpm --filter @tellar/api prisma migrate dev",
+    "db:seed": "pnpm --filter @tellar/api db:seed",
+    "lint": "pnpm -r lint"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "engines": { "node": ">=20.10" }
+}

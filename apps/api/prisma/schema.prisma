@@ -1,0 +1,238 @@
+// Tellar — Prisma schema (per handoff §04)
+// For Postgres + pgvector set provider="postgresql" and keep the KBChunk.embedding Unsupported
+// For a zero-infra dev start, swap provider="sqlite", DATABASE_URL="file:./dev.db",
+// and comment out the `embedding` field — the agent falls back to keyword search.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  GITHUB
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum Plan {
+  FREE
+  PRO
+  SCALE
+  ENTERPRISE
+}
+
+enum AccessMode {
+  PUBLIC
+  EMAIL_GATED
+  PASSPHRASE
+  INVITE_ONLY
+}
+
+enum EventType {
+  SLIDE_VIEW
+  SLIDE_DWELL
+  AGENT_QUERY
+  SHARE_OPEN
+  DOWNLOAD
+}
+
+model User {
+  id              String       @id @default(cuid())
+  email           String       @unique
+  name            String
+  passwordHash    String?
+  provider        AuthProvider @default(EMAIL)
+  createdAt       DateTime     @default(now())
+  memberships     Membership[]
+  sessions        Session[]
+  ownedWorkspaces Workspace[]  @relation("owner")
+}
+
+model Workspace {
+  id        String       @id @default(cuid())
+  ownerId   String
+  owner     User         @relation("owner", fields: [ownerId], references: [id])
+  name      String
+  slug      String       @unique
+  plan      Plan         @default(FREE)
+  seats     Int          @default(1)
+  createdAt DateTime     @default(now())
+  members   Membership[]
+  tellers   Teller[]
+  usage     Usage?
+  billing   Billing?
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  email       String
+  role        Role      @default(EDITOR)
+  status      String    @default("active")
+  joinedAt    DateTime  @default(now())
+
+  @@unique([workspaceId, email])
+}
+
+model Teller {
+  id          String      @id @default(cuid())
+  workspaceId String
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ownerId     String
+  title       String
+  theme       String      @default("editorial-cream")
+  revision    Int         @default(1)
+  deletedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  slides      Slide[]
+  shares      Share[]
+  kbSources   KBSource[]
+  recordings  Recording[]
+  events      Event[]
+
+  @@index([workspaceId, deletedAt])
+}
+
+model Slide {
+  id       String  @id @default(cuid())
+  tellerId String
+  teller   Teller  @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  idx      Int
+  eyebrow  String?
+  title    String
+  subtitle String?
+  notes    String?
+  layout   Json    @default("{}")
+
+  @@unique([tellerId, idx])
+}
+
+model Share {
+  id             String     @id @default(cuid())
+  tellerId       String
+  teller         Teller     @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  slug           String     @unique
+  accessMode     AccessMode @default(EMAIL_GATED)
+  allowedDomains String[]
+  passphraseHash String?
+  perms          Json       @default("{}")
+  expiresAt      DateTime?
+  maxOpens       Int?
+  requireOTC     Boolean    @default(false)
+  revokedAt      DateTime?
+  invitees       Invitee[]
+  events         Event[]
+  createdAt      DateTime   @default(now())
+}
+
+model Invitee {
+  id       String    @id @default(cuid())
+  shareId  String
+  share    Share     @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  email    String
+  name     String?
+  status   String    @default("pending")
+  opens    Int       @default(0)
+  lastSeen DateTime?
+
+  @@unique([shareId, email])
+}
+
+model Recording {
+  id         String   @id @default(cuid())
+  tellerId   String
+  teller     Teller   @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  slideId    String?
+  mode       String
+  durationMs Int
+  sizeBytes  Int
+  s3Key      String
+  transcript String?
+  status     String   @default("uploading")
+  createdAt  DateTime @default(now())
+}
+
+model KBSource {
+  id        String    @id @default(cuid())
+  tellerId  String
+  teller    Teller    @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  kind      String
+  name      String
+  bytes     Int?
+  s3Key     String?
+  indexed   Boolean   @default(false)
+  chunks    KBChunk[]
+  createdAt DateTime  @default(now())
+}
+
+model KBChunk {
+  id        String   @id @default(cuid())
+  sourceId  String
+  source    KBSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  page      Int?
+  text      String
+  // embedding Unsupported("vector(1536)")   // enable when pgvector is installed
+  @@index([sourceId])
+}
+
+model Event {
+  id        String    @id @default(cuid())
+  type      EventType
+  tellerId  String
+  teller    Teller    @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  shareId   String?
+  share     Share?    @relation(fields: [shareId], references: [id])
+  sessionId String
+  email     String?
+  slideIdx  Int?
+  dwellMs   Int?
+  meta      Json      @default("{}")
+  at        DateTime  @default(now())
+
+  @@index([tellerId, at])
+  @@index([shareId, sessionId])
+}
+
+model Usage {
+  workspaceId      String    @id
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  month            String
+  agentQueries     Int       @default(0)
+  recordingMinutes Int       @default(0)
+  storageMB        Int       @default(0)
+}
+
+model Billing {
+  workspaceId      String    @id
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stripeCustomerId String?
+  plan             Plan      @default(FREE)
+  subscriptionId   String?
+  seatCount        Int       @default(1)
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+}
