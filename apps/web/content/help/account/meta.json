@@ -1,0 +1,4 @@
+{
+  "title": "Account",
+  "pages": ["change-password", "delete-account", "export-my-data", "connected-accounts"]
+}

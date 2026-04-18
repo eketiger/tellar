@@ -1,0 +1,5 @@
+rules:
+  operation-description: warn
+  operation-summary: error
+  no-unused-components: warn
+  tag-description: warn

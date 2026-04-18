@@ -22,6 +22,14 @@
 - **Agent RAG** — Claude + keyword rerank out of the box; upgrades to OpenAI
   embeddings + Pinecone when those env vars are set.
 
+## Companion instruction files
+
+- `CLAUDE-docs.md` — Fumadocs (/docs, /help) + Scalar (/api-reference) + OpenAPI conventions
+- `CLAUDE-infra.md` — AWS CDK stacks (`infra/`), CI/CD, OIDC federation
+
+All three files apply together. When a later session re-reads this repo, it should treat them
+as one authoritative source of truth.
+
 ## Rules for Claude Code sessions
 
 - **Never regress architecture above** unless the user asks explicitly. If a spec

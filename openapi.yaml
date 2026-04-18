@@ -1,0 +1,526 @@
+openapi: 3.1.0
+info:
+  title: Tellar API
+  version: 1.0.0
+  description: |
+    The Tellar API lets you programmatically manage tellars, shares, recordings,
+    knowledge-base sources, and the Claude-powered agent. All endpoints under
+    `/api/*` are authenticated with an httpOnly JWT cookie named `tellar_jwt` —
+    the `bearerAuth` scheme below models that for client code that wants to pass
+    the token manually.
+  contact:
+    url: https://tellar.studio/help
+
+servers:
+  - url: https://tellar.studio
+    description: Production
+  - url: http://localhost:3333
+    description: Local NestJS backend
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Tellers
+  - name: Slides
+  - name: Shares
+  - name: Viewer
+  - name: Agent
+  - name: Billing
+  - name: Account
+  - name: Admin
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode: { type: integer }
+        message:    { type: string }
+    Teller:
+      type: object
+      required: [id, title]
+      properties:
+        id:        { type: string }
+        title:     { type: string }
+        theme:     { type: string }
+        revision:  { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Slide:
+      type: object
+      required: [id, idx, title]
+      properties:
+        id:       { type: string }
+        idx:      { type: integer }
+        eyebrow:  { type: string, nullable: true }
+        title:    { type: string }
+        subtitle: { type: string, nullable: true }
+        notes:    { type: string, nullable: true }
+    Share:
+      type: object
+      properties:
+        id:             { type: string }
+        slug:           { type: string }
+        accessMode:
+          type: string
+          enum: [PUBLIC, EMAIL_GATED, PASSPHRASE, INVITE_ONLY]
+        allowedDomains: { type: array, items: { type: string } }
+        perms:          { type: object, additionalProperties: { type: boolean } }
+    Citation:
+      type: object
+      required: [ref, label]
+      properties:
+        ref:   { type: string, description: "e.g. [cite:slide:4]" }
+        label: { type: string }
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account and a personal workspace
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:     { type: string, minLength: 1 }
+                email:    { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: User + workspace + JWT (also set as httpOnly cookie)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:      { type: object }
+                  workspace: { type: object }
+                  token:     { type: string }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:    { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: JWT + user + active workspace
+        '401': { description: Invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current session
+      responses:
+        '200': { description: Session envelope }
+
+  /api/tellers:
+    get:
+      tags: [Tellers]
+      summary: List tellars in the active workspace
+      responses:
+        '200':
+          description: Array of tellars
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Teller' } }
+    post:
+      tags: [Tellers]
+      summary: Create a new tellar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                theme: { type: string }
+      responses:
+        '200':
+          description: Created teller
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Teller' }
+
+  /api/tellers/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema: { type: string }
+        required: true
+    get:
+      tags: [Tellers]
+      summary: Full tellar (slides + kbSources + shares + recordings)
+      responses:
+        '200': { description: Tellar bundle }
+        '404': { description: Not found }
+    patch:
+      tags: [Tellers]
+      summary: Update title or theme
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { title: { type: string }, theme: { type: string } } }
+      responses: { '200': { description: Updated teller } }
+    delete:
+      tags: [Tellers]
+      summary: Soft-delete a tellar
+      responses: { '200': { description: OK } }
+
+  /api/tellers/{id}/slides:
+    post:
+      tags: [Slides]
+      summary: Add a blank slide to the end
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string }
+          required: true
+      responses:
+        '200':
+          description: Created slide
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Slide' }
+
+  /api/slides/{slideId}:
+    parameters:
+      - in: path
+        name: slideId
+        schema: { type: string }
+        required: true
+    patch:
+      tags: [Slides]
+      summary: Edit slide content/layout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eyebrow: { type: string }
+                title:   { type: string }
+                subtitle: { type: string }
+                notes:   { type: string }
+                layout:  { type: object }
+                idx:     { type: integer }
+      responses: { '200': { description: Updated slide } }
+    delete:
+      tags: [Slides]
+      summary: Delete a slide (reindexes siblings)
+      responses: { '200': { description: OK } }
+
+  /api/tellers/{tellerId}/shares:
+    post:
+      tags: [Shares]
+      summary: Create (or return the existing) share for a tellar
+      parameters:
+        - in: path
+          name: tellerId
+          schema: { type: string }
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accessMode: { type: string, enum: [PUBLIC, EMAIL_GATED, PASSPHRASE, INVITE_ONLY] }
+                allowedDomains: { type: array, items: { type: string } }
+                passphrase: { type: string }
+                perms: { type: object }
+                expiresAt: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Share
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Share' }
+
+  /api/shares/{shareId}:
+    patch:
+      tags: [Shares]
+      summary: Update share settings (perms, domains, expiry, etc.)
+      parameters:
+        - in: path
+          name: shareId
+          schema: { type: string }
+          required: true
+      requestBody:
+        content: { application/json: { schema: { type: object } } }
+      responses: { '200': { description: Updated share } }
+
+  /api/shares/{shareId}/revoke:
+    post:
+      tags: [Shares]
+      summary: Revoke a share (immediate)
+      parameters:
+        - in: path
+          name: shareId
+          schema: { type: string }
+          required: true
+      responses: { '200': { description: Revoked } }
+
+  /api/v/{slug}/authorize:
+    post:
+      tags: [Viewer]
+      summary: Viewer gate — returns a short-lived share token
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          schema: { type: string }
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:      { type: string, format: email }
+                passphrase: { type: string }
+      responses:
+        '200':
+          description: 15-minute share token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:      { type: string }
+                  ttlSeconds: { type: integer }
+        '403': { description: Not allowed }
+
+  /api/v/{slug}:
+    get:
+      tags: [Viewer]
+      summary: Viewer bundle (slides, recordings, perms). Requires x-share-token unless PUBLIC.
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          schema: { type: string }
+          required: true
+        - in: header
+          name: x-share-token
+          schema: { type: string }
+      responses: { '200': { description: Viewer data } }
+
+  /api/agent/ask:
+    post:
+      tags: [Agent]
+      summary: Viewer Q&A over a tellar (RAG + Claude)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tellerId, question]
+              properties:
+                tellerId: { type: string }
+                question: { type: string, maxLength: 2000 }
+                email:    { type: string, format: email }
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string }
+      responses:
+        '200':
+          description: Answer with inline citations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:    { type: string }
+                  citations: { type: array, items: { $ref: '#/components/schemas/Citation' } }
+        '403': { description: Rate limit exceeded }
+
+  /api/agent/copilot:
+    post:
+      tags: [Agent]
+      summary: Editor copilot — rewrite, tighten, narration, suggest new slide
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind]
+              properties:
+                kind:
+                  type: string
+                  enum: [rewrite, tighten, narration, structure, improve, expand, summarize, fix_grammar, change_tone]
+                slideId:      { type: string }
+                selectedText: { type: string }
+                context:      { type: string }
+                toneTarget:   { type: string }
+      responses:
+        '200':
+          description: Suggestion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestion: { type: string }
+        '403': { description: Rate limit exceeded }
+
+  /api/tellers/{tellerId}/similar:
+    get:
+      tags: [Agent]
+      summary: Semantically similar tellars (Pinecone — or fallback)
+      security: []
+      parameters:
+        - in: path
+          name: tellerId
+          schema: { type: string }
+          required: true
+      responses: { '200': { description: Array of tellars with similarity score } }
+
+  /api/billing/create-checkout-session:
+    post:
+      tags: [Billing]
+      summary: Stripe Checkout session for a plan upgrade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan, workspaceId, successUrl, cancelUrl]
+              properties:
+                plan:        { type: string, enum: [PRO, SCALE] }
+                workspaceId: { type: string }
+                successUrl:  { type: string }
+                cancelUrl:   { type: string }
+      responses:
+        '200':
+          description: Checkout redirect URL
+          content:
+            application/json:
+              schema: { type: object, properties: { url: { type: string }, mock: { type: boolean } } }
+
+  /api/billing/create-portal-session:
+    post:
+      tags: [Billing]
+      summary: Stripe Customer Portal session
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returnUrl: { type: string }
+      responses: { '200': { description: Portal URL } }
+
+  /api/billing/cancel:
+    post:
+      tags: [Billing]
+      summary: Set cancel-at-period-end on the active subscription
+      responses: { '200': { description: Updated subscription } }
+
+  /api/billing/webhook:
+    post:
+      tags: [Billing]
+      summary: Stripe webhook receiver (public, signature-verified)
+      security: []
+      responses: { '200': { description: Acknowledged } }
+
+  /api/user/data-export:
+    get:
+      tags: [Account]
+      summary: GDPR — download all your data as JSON
+      responses:
+        '200':
+          description: JSON file attachment
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/user/account:
+    delete:
+      tags: [Account]
+      summary: GDPR — request account deletion (30-day soft delete)
+      responses:
+        '200':
+          description: Scheduled deletion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  scheduledDeletionAt: { type: string, format: date-time }
+
+  /api/admin/overview:
+    get:
+      tags: [Admin]
+      summary: Platform KPIs (admin only)
+      responses: { '200': { description: KPI bundle } }
+
+  /api/admin/accounts:
+    get:
+      tags: [Admin]
+      summary: Paginated accounts list with search
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+      responses: { '200': { description: Accounts page } }
+
+  /api/events:
+    post:
+      tags: [Viewer]
+      summary: Beacon endpoint — ingest SLIDE_VIEW / SLIDE_DWELL / AGENT_QUERY / SHARE_OPEN
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, tellerId, sessionId]
+              properties:
+                type:      { type: string, enum: [SLIDE_VIEW, SLIDE_DWELL, AGENT_QUERY, SHARE_OPEN, DOWNLOAD] }
+                tellerId:  { type: string }
+                shareId:   { type: string }
+                sessionId: { type: string }
+                email:     { type: string, format: email }
+                slideIdx:  { type: integer }
+                dwellMs:   { type: integer }
+                meta:      { type: object }
+      responses: { '200': { description: OK } }

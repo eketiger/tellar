@@ -1,0 +1,20 @@
+---
+title: Billing
+description: Checkout, portal, cancel, webhook.
+---
+
+### Start a checkout
+
+```bash
+curl -X POST http://localhost:3333/api/billing/create-checkout-session \
+  -b cookies.txt -H "Content-Type: application/json" \
+  -d '{"plan":"PRO","workspaceId":"WS_ID","successUrl":"http://localhost:3000/settings","cancelUrl":"http://localhost:3000/settings"}'
+```
+
+### Open the Customer Portal
+
+```bash
+curl -X POST http://localhost:3333/api/billing/create-portal-session \
+  -b cookies.txt -H "Content-Type: application/json" \
+  -d '{"returnUrl":"http://localhost:3000/settings"}'
+```

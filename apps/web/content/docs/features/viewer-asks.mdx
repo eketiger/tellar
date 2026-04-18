@@ -1,0 +1,16 @@
+---
+title: Viewer Asks
+description: The in-deck chat that answers questions from your content.
+---
+
+The viewer's chat is a RAG pipeline: it embeds the question, retrieves the top-k chunks
+from the tellar (slide text, narration transcripts, knowledge-base PDFs/URLs), and asks
+Claude to answer using *only* those chunks, with strict citations.
+
+Citation syntax:
+
+- `[cite:slide:N]` — slide reference
+- `[cite:audio:N]` — narration of slide N
+- `[cite:kb:NAME]` — knowledge-base source
+
+Rate limit: **20 questions per viewer per tellar per day**.

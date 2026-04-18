@@ -1,0 +1,12 @@
+---
+title: Search isn't working
+description: When the agent or search returns nothing.
+category: troubleshooting
+---
+
+- **No knowledge base attached** — add a KB source in the editor's right panel. The agent
+  uses only tellar content plus KB.
+- **KB still indexing** — after upload, the KB shows "indexing…" for a few seconds. Wait
+  until it turns green.
+- **Pinecone unreachable** — without Pinecone we fall back to a keyword search. Results will
+  still show, just less semantic.

@@ -1,0 +1,12 @@
+---
+title: Search
+description: Semantic search across a tellar.
+---
+
+```bash
+curl -X POST http://localhost:3333/api/tellers/TLR_ID/ask \
+  -b cookies.txt -H "Content-Type: application/json" \
+  -d '{"question":"what is the team size?"}'
+```
+
+Returns the answer and an array of citations with source labels.

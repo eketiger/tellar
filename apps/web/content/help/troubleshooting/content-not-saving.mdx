@@ -1,0 +1,11 @@
+---
+title: Content isn't saving
+description: When a slide edit doesn't stick.
+category: troubleshooting
+---
+
+The editor autosaves on blur. If you see the title revert after typing, check:
+
+- Network tab — `PATCH /api/slides/{id}` should return 200.
+- Session — if your JWT expired (every 7 days) the save will 401. Refresh and log in again.
+- Role — Viewers can't edit. Ask an admin to promote you.

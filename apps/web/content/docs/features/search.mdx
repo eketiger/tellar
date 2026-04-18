@@ -1,0 +1,11 @@
+---
+title: Semantic search
+description: Pinecone + OpenAI embeddings with a keyword fallback.
+---
+
+When `PINECONE_API_KEY` and `OPENAI_API_KEY` are set, the knowledge base runs as a real
+vector retrieval: every published tellar is chunked (~400 words, 50-word overlap) and upserted
+to Pinecone. Search embeds the query (`text-embedding-3-small`) and returns the top matches.
+
+Without those keys, the platform falls back to a simple keyword score over the same chunks —
+the product still works, just less semantically.

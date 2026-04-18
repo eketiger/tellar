@@ -1,0 +1,11 @@
+---
+title: Payment failed
+description: What happens when your card declines.
+category: billing
+---
+
+When a charge fails, your subscription moves to `past_due`. Stripe will retry three times
+over seven days. During that window your paid features stay active. If the retries all fail,
+the subscription cancels and the workspace drops to Free.
+
+Update your card at **Settings → Billing → Manage billing** as soon as possible.

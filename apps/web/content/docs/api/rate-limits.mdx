@@ -1,0 +1,12 @@
+---
+title: Rate limits
+description: Current limits per feature.
+---
+
+| Endpoint | Limit |
+| --- | --- |
+| `POST /api/agent/copilot` | 50 / day / user |
+| `POST /api/tellers/{id}/ask` | 20 / day / user / tellar |
+| Viewer events (`POST /api/events`) | 10 / second / session |
+
+Hitting a limit returns HTTP **429**. Anthropic upstream throttling surfaces as HTTP **503**.

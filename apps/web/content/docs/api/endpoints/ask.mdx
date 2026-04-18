@@ -1,0 +1,12 @@
+---
+title: Ask
+description: Viewer Q&A endpoint.
+---
+
+Used by the in-viewer chat. Returns a single full answer with inline citation markers.
+
+```bash
+curl -X POST http://localhost:3333/api/agent/ask \
+  -H "Content-Type: application/json" \
+  -d '{"tellerId":"tlr_xxx","question":"what is the CAC payback?","history":[]}'
+```

@@ -1,0 +1,14 @@
+---
+title: Data export
+description: Download a copy of your data as JSON.
+---
+
+Sign in, open **Settings → Security & privacy**, and click **Download my data**. The file
+is served via `GET /api/user/data-export` and includes your user record, memberships, owned
+workspaces, subscriptions, and invoices.
+
+You can also request it programmatically:
+
+```bash
+curl -b "tellar_jwt=..." http://localhost:3333/api/user/data-export > export.json
+```

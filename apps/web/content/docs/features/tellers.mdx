@@ -1,0 +1,10 @@
+---
+title: Tellers
+description: What a tellar is and how it is stored.
+---
+
+A **tellar** is a sequence of slides with optional narration recordings and an attached
+knowledge base. Everything lives in Postgres via Prisma. Slides have an index, an eyebrow,
+a title (which can contain HTML for inline emphasis), a subtitle, and speaker notes.
+
+Tellars are versioned through a `revision` counter that increments on every meaningful edit.

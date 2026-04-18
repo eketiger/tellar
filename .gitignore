@@ -9,3 +9,8 @@ dist
 coverage
 apps/api/prisma/dev.db*
 uploads/
+# CDK
+infra/cdk.out
+infra/*.tsbuildinfo
+# Fumadocs generated
+apps/web/.source

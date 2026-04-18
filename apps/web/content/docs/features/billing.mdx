@@ -1,0 +1,18 @@
+---
+title: Billing
+description: Stripe Checkout, Portal, and webhook pipeline.
+---
+
+Plans:
+
+- **Free** — 1 workspace, 1 teller, 1,000 agent queries / month
+- **Pro** — $49/mo — unlimited tellers, 5 seats
+- **Scale** — $149/mo — 25 seats, priority support
+- **Enterprise** — custom
+
+Users upgrade via Stripe Checkout (`POST /api/billing/create-checkout-session`)
+and manage their card / invoices via the Customer Portal
+(`POST /api/billing/create-portal-session`).
+
+The webhook at `POST /api/billing/webhook` verifies Stripe's signature, then upserts the
+`Subscription` and `Invoice` rows for every lifecycle event.

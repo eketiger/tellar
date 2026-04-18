@@ -60,3 +60,17 @@ jobs:
           name: coverage-api
           path: apps/api/coverage
           if-no-files-found: ignore
+
+      - name: Validate OpenAPI spec
+        run: npx -y @redocly/cli lint openapi.yaml
+
+      - name: CDK synth & test
+        working-directory: infra
+        env:
+          CDK_DEFAULT_ACCOUNT: '000000000000'
+          CDK_DEFAULT_REGION: us-east-1
+        run: |
+          npm install --no-audit --no-fund
+          npx tsc --noEmit
+          npx jest --passWithNoTests
+          npx cdk synth -c env=staging || true

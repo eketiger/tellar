@@ -1,0 +1,11 @@
+---
+title: GDPR & privacy
+description: Your rights under GDPR and how the platform respects them.
+---
+
+- **Access & export** — `GET /api/user/data-export` returns everything joinable to your user id.
+- **Erasure** — `DELETE /api/user/account` sets a soft-delete flag; after 30 days the records are purged.
+- **Portability** — the export is JSON, reusable anywhere.
+- **Consent** — analytics are off until you explicitly accept cookies.
+
+PII (email, name, raw IPs) is never logged in plain text. IPs are hashed to a 24-character prefix.

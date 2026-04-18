@@ -1,0 +1,23 @@
+---
+title: Errors
+description: Standard error shape.
+---
+
+Errors follow Nest's default shape:
+
+```json
+{
+  "statusCode": 400,
+  "message": "Invalid input",
+  "issues": { "fieldErrors": { "email": ["invalid email"] } }
+}
+```
+
+| Code | Meaning |
+| --- | --- |
+| 400 | Invalid body or query |
+| 401 | Missing / invalid JWT |
+| 403 | Cross-tenant access or admin-only route |
+| 404 | Resource missing or soft-deleted |
+| 429 | Rate limit hit |
+| 503 | Upstream AI service temporarily unavailable |

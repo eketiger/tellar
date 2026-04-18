@@ -1,0 +1,29 @@
+---
+title: Tellers
+description: CRUD on tellars.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+### List tellars
+
+<Tabs items={['cURL', 'TypeScript']}>
+  <Tab value="cURL">
+  ```bash
+  curl -b cookies.txt http://localhost:3333/api/tellers
+  ```
+  </Tab>
+  <Tab value="TypeScript">
+  ```ts
+  const tellers = await fetch('/api/tellers', { credentials: 'include' }).then(r => r.json());
+  ```
+  </Tab>
+</Tabs>
+
+### Create a tellar
+
+```bash
+curl -X POST http://localhost:3333/api/tellers \
+  -b cookies.txt -H "Content-Type: application/json" \
+  -d '{"title":"Q3 board update"}'
+```
