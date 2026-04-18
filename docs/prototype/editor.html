@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tellar — Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  html,body{overflow:hidden;height:100vh}
+  .editor-layout{display:grid;grid-template-columns:220px 1fr 380px;height:calc(100vh - 58px);position:relative;z-index:3}
+  .slide-list{border-right:1px solid var(--line);background:var(--bg-2);overflow-y:auto;padding:18px 14px}
+  .sl-head{display:flex;align-items:center;justify-content:space-between;padding:0 4px 14px;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .sl-head h3{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;font-weight:500}
+  .sl-head button{width:22px;height:22px;border-radius:50%;background:var(--panel);border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .sl-head button:hover{border-color:var(--accent);color:var(--accent)}
+
+  .slide-thumb{display:flex;gap:10px;margin-bottom:8px;cursor:pointer;padding:6px;border-radius:3px;transition:background .2s;position:relative}
+  .slide-thumb:hover{background:var(--panel)}
+  .slide-thumb.active{background:var(--panel)}
+  .slide-thumb.active::before{content:'';position:absolute;left:-14px;top:10%;bottom:10%;width:2px;background:var(--accent)}
+  .st-num{font-family:var(--mono);font-size:10px;color:var(--ink-3);padding-top:6px;width:16px;flex-shrink:0}
+  .slide-thumb.active .st-num{color:var(--accent)}
+  .st-card{flex:1;aspect-ratio:16/10;background:#f6f3ed;border-radius:2px;box-shadow:0 2px 8px rgba(0,0,0,.3);padding:6px 8px;color:#1a1a1a;overflow:hidden;position:relative}
+  .st-card-title{font-family:var(--serif);font-size:8px;font-weight:500;line-height:1.1;letter-spacing:-.01em}
+  .st-card em{font-style:italic;color:#c89a3a}
+  .st-card .st-rec-badge{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--bad)}
+
+  .canvas-area{display:flex;flex-direction:column;background:var(--bg);position:relative;overflow:hidden}
+  .canvas-toolbar{display:flex;align-items:center;gap:4px;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--bg-2);flex-wrap:wrap}
+  .tool-btn{min-width:30px;height:30px;padding:0 8px;background:transparent;border:none;color:var(--ink-2);cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:var(--sans);font-size:12px}
+  .tool-btn:hover{background:var(--panel);color:var(--ink)}
+  .tool-btn.active{background:var(--panel);color:var(--accent)}
+  .tool-divider{width:1px;height:18px;background:var(--line);margin:0 6px}
+  .tool-label{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase;padding:0 8px}
+  .color-swatch{width:18px;height:18px;border-radius:3px;border:1px solid var(--line-2);cursor:pointer}
+  .font-select{background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:var(--sans);font-size:11px;padding:4px 6px;border-radius:2px;outline:none}
+
+  .canvas-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:40px;background:radial-gradient(circle at 50% 50%, var(--bg-2), var(--bg));position:relative;overflow:auto}
+  .canvas-stage::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);background-size:24px 24px}
+
+  .slide-canvas{width:min(860px,90%);aspect-ratio:16/10;background:#f6f3ed;color:#1a1a1a;padding:60px 70px;position:relative;z-index:2;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.2);display:flex;flex-direction:column;justify-content:space-between}
+  .sc-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.25em;color:#888;text-transform:uppercase;outline:none}
+  .sc-eyebrow:focus{outline:2px dashed #c89a3a;outline-offset:6px}
+  .sc-main{display:flex;flex-direction:column;gap:20px}
+  .sc-title{font-family:var(--serif);font-size:68px;font-weight:400;line-height:1.02;letter-spacing:-.025em;outline:none}
+  .sc-title em{font-style:italic;color:#c89a3a}
+  .sc-title:focus{outline:2px dashed #c89a3a;outline-offset:8px}
+  .sc-sub{font-family:var(--serif);font-style:italic;font-size:22px;color:#555;line-height:1.4;max-width:70%;outline:none}
+  .sc-sub:focus{outline:2px dashed #c89a3a;outline-offset:6px}
+  .sc-foot{font-family:var(--mono);font-size:11px;color:#aaa;display:flex;justify-content:space-between}
+
+  .narration-bar{background:var(--bg-2);border-top:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:14px}
+  .nb-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;min-width:100px}
+  .waveform{flex:1;height:36px;display:flex;align-items:center;gap:2px}
+  .wave-bar{flex:1;background:var(--line-2);border-radius:1px;min-width:2px;height:6px}
+  .wave-bar.active{background:var(--accent)}
+  .narration-time{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+  .narration-rec{display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--bad);color:var(--bad);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:transparent;cursor:pointer;transition:all .2s}
+  .narration-rec:hover{background:rgba(212,122,122,.1)}
+  .narration-rec::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--bad)}
+  .narration-play{width:32px;height:32px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .narration-play:hover{border-color:var(--accent);color:var(--accent)}
+
+  .right-panel{border-left:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column;min-height:0}
+  .rp-tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0}
+  .rp-tab{flex:1;padding:14px 10px;background:transparent;border:none;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);position:relative;transition:color .2s}
+  .rp-tab.active{color:var(--ink)}
+  .rp-tab.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent)}
+  .rp-tab .badge{margin-left:4px;font-size:9px;padding:1px 5px;background:var(--panel);border:1px solid var(--line-2);border-radius:10px;color:var(--ink-2)}
+  .rp-content{flex:1;overflow-y:auto;padding:20px;min-height:0}
+  .pane{display:none}
+  .pane.active{display:block}
+
+  .copilot-head{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .agent-mark{width:32px;height:32px;border:1px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;color:var(--accent);font-size:16px;position:relative;flex-shrink:0}
+  .agent-mark::before{content:'';position:absolute;inset:-3px;border:1px dashed var(--line-2);border-radius:50%;animation:rot 20s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .agent-name{font-family:var(--serif);font-size:15px;font-weight:500}
+  .agent-name em{font-style:italic;color:var(--accent)}
+  .agent-sub{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;margin-top:2px}
+  .context-chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--accent);padding:3px 8px;border:1px solid rgba(244,185,66,.3);background:rgba(244,185,66,.05);border-radius:2px;margin-bottom:12px}
+  .context-chip::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%}
+
+  .suggestion-card{border:1px solid var(--line);background:var(--panel);padding:14px;margin-bottom:10px;position:relative}
+  .sc-kind{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .sc-kind.rewrite{color:var(--violet)}
+  .sc-kind.structure{color:var(--blue)}
+  .sc-kind.narration{color:var(--accent-2)}
+  .sc-kind::before{content:'';width:6px;height:6px;background:currentColor;border-radius:50%}
+  .sc-title-sugg{font-family:var(--serif);font-size:14px;font-weight:500;margin-bottom:6px}
+  .sc-preview{font-family:var(--serif);font-size:13px;font-style:italic;color:var(--ink-2);line-height:1.5;padding:10px;background:var(--bg);border-left:2px solid var(--line-2);margin:8px 0;white-space:pre-wrap}
+  .sc-preview em{color:var(--accent)}
+  .sc-compare{font-family:var(--serif);font-size:12px;color:var(--ink-3);font-style:italic;text-decoration:line-through;margin-bottom:6px}
+  .sc-actions{display:flex;gap:8px;margin-top:10px}
+  .sc-apply{flex:1;padding:7px;border:none;background:var(--accent);color:#0c0d0f;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;border-radius:2px;transition:background .2s}
+  .sc-apply:hover{background:#e8ad3a}
+  .sc-dismiss{padding:7px 12px;border:1px solid var(--line-2);background:transparent;color:var(--ink-2);font-family:var(--sans);font-size:12px;cursor:pointer;border-radius:2px;transition:all .2s}
+  .sc-dismiss:hover{border-color:var(--line-3);color:var(--ink)}
+  .copilot-chat{padding-top:16px;margin-top:16px;border-top:1px solid var(--line)}
+
+  .kb-intro{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-2);line-height:1.55;margin-bottom:18px}
+  .kb-dropzone{border:1px dashed var(--line-2);padding:22px;text-align:center;margin-bottom:18px;transition:all .25s;cursor:pointer;background:var(--panel)}
+  .kb-dropzone:hover,.kb-dropzone.drag{border-color:var(--accent);background:rgba(244,185,66,.06)}
+  .kb-dropzone svg{margin-bottom:10px}
+  .kb-dropzone .kb-title{font-family:var(--serif);font-size:14px;font-weight:500;margin-bottom:4px}
+  .kb-dropzone .kb-sub{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em}
+  .kb-list{display:flex;flex-direction:column;gap:8px}
+  .kb-item{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);background:var(--panel)}
+  .kb-icon{width:30px;height:30px;flex-shrink:0;background:var(--panel-3);display:flex;align-items:center;justify-content:center;border-radius:2px;font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--ink-2)}
+  .kb-icon.pdf{background:rgba(212,122,122,.1);color:var(--bad)}
+  .kb-icon.doc{background:rgba(127,168,212,.1);color:var(--blue)}
+  .kb-icon.url{background:rgba(159,143,211,.1);color:var(--violet)}
+  .kb-icon.xlsx{background:rgba(140,200,140,.1);color:var(--good)}
+  .kb-info{flex:1;min-width:0}
+  .kb-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kb-meta{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:2px}
+  .kb-status{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--good);padding:2px 6px;border:1px solid rgba(140,200,140,.3);border-radius:2px;text-transform:uppercase}
+  .kb-status.indexing{color:var(--accent);border-color:rgba(244,185,66,.3)}
+  .kb-delete{background:transparent;border:none;color:var(--ink-3);cursor:pointer;padding:4px;font-size:14px}
+  .kb-delete:hover{color:var(--bad)}
+
+  .rec-pane-preview{aspect-ratio:16/10;background:linear-gradient(135deg,#1a1c21,#0f1014);border:1px solid var(--line);margin-bottom:16px;position:relative;overflow:hidden}
+  .rec-pane-preview video{width:100%;height:100%;object-fit:cover;display:block;background:#000}
+  .rec-pane-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--ink-3);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;text-align:center;padding:20px}
+  .rec-pane-placeholder svg{opacity:.4}
+  .rec-live-dot{position:absolute;top:10px;left:10px;padding:4px 8px;font-family:var(--mono);font-size:9px;letter-spacing:.15em;color:#fff;background:rgba(212,122,122,.9);display:none;align-items:center;gap:6px;text-transform:uppercase;border-radius:2px}
+  .rec-live-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.2s infinite}
+  .rec-live-dot.on{display:flex}
+
+  .rec-controls-panel{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+  .rec-big-btn{width:100%;padding:14px;border:1px solid var(--bad);background:rgba(212,122,122,.08);color:var(--bad);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px}
+  .rec-big-btn::before{content:'';width:10px;height:10px;border-radius:50%;background:var(--bad)}
+  .rec-big-btn:hover{background:rgba(212,122,122,.15)}
+  .rec-big-btn.recording{background:var(--bad);color:#fff}
+  .rec-big-btn.recording::before{background:#fff;animation:pulse 1.2s infinite}
+  .rec-big-btn:disabled{opacity:.4;cursor:not-allowed}
+
+  .rec-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .rec-option{padding:10px;border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:all .2s;text-align:center}
+  .rec-option:hover{border-color:var(--line-2)}
+  .rec-option.sel{border-color:var(--accent);background:rgba(244,185,66,.05)}
+  .rec-option .icn{color:var(--ink-2)}
+  .rec-option.sel .icn{color:var(--accent)}
+  .rec-option .nm{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-2);text-transform:uppercase}
+  .rec-option.sel .nm{color:var(--ink)}
+
+  .clip-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .clip-item{padding:10px;border:1px solid var(--line);background:var(--panel);display:flex;gap:10px;align-items:center}
+  .clip-num{font-family:var(--mono);font-size:10px;color:var(--ink-3);width:18px}
+  .clip-meta{flex:1;display:flex;flex-direction:column;min-width:0}
+  .clip-title{font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .clip-sub{font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+  .clip-time{font-family:var(--mono);font-size:10px;color:var(--ink-2)}
+  .clip-play{width:24px;height:24px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink-2);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .clip-play:hover{border-color:var(--accent);color:var(--accent)}
+  .clip-item.current{border-color:var(--accent);background:rgba(244,185,66,.05)}
+
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 18px;background:var(--panel-2);border:1px solid var(--line-2);font-family:var(--mono);font-size:11px;color:var(--ink);z-index:200;opacity:0;transition:opacity .3s}
+  .toast.show{opacity:1}
+
+  .playback-modal{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center}
+  .playback-modal.show{display:flex}
+  .playback-modal video{max-width:90vw;max-height:80vh;background:#000}
+  .playback-modal .close{position:absolute;top:20px;right:20px;background:transparent;border:1px solid var(--line-2);color:var(--ink);padding:6px 12px;cursor:pointer;font-family:var(--mono);font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <a href="dashboard.html" class="brand-mark">tellar</a>
+    <div class="brand-tag">/ editor</div>
+  </div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="topbar-right">
+    <span id="saveState" style="font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em">saved</span>
+    <a href="viewer.html" class="btn btn-sm btn-ghost">preview</a>
+    <a href="share.html" class="btn btn-sm btn-primary">share</a>
+    <div class="avatar" id="avatar">M</div>
+  </div>
+</div>
+
+<div class="editor-layout">
+
+  <aside class="slide-list">
+    <div class="sl-head">
+      <h3 id="slideCount">Slides</h3>
+      <button title="Add slide" onclick="addSlide()">+</button>
+    </div>
+    <div id="thumbList"></div>
+  </aside>
+
+  <main class="canvas-area">
+    <div class="canvas-toolbar" id="styleBar">
+      <span class="tool-label" id="slideIndicator">slide —</span>
+      <div class="tool-divider"></div>
+      <select class="font-select" id="fontFamily" title="Font family">
+        <option value="var(--serif)">Fraunces</option>
+        <option value="var(--sans)">Inter Tight</option>
+        <option value="var(--mono)">JetBrains Mono</option>
+      </select>
+      <select class="font-select" id="fontSize" title="Font size">
+        <option value="14px">14</option>
+        <option value="18px">18</option>
+        <option value="24px">24</option>
+        <option value="32px">32</option>
+        <option value="48px">48</option>
+        <option value="56px">56</option>
+        <option value="68px" selected>68</option>
+        <option value="84px">84</option>
+      </select>
+      <button class="tool-btn" data-cmd="bold" title="Bold"><span style="font-weight:700">B</span></button>
+      <button class="tool-btn" data-cmd="italic" title="Italic"><span style="font-style:italic;font-family:var(--serif)">I</span></button>
+      <button class="tool-btn" data-cmd="underline" title="Underline"><span style="text-decoration:underline">U</span></button>
+      <div class="tool-divider"></div>
+      <button class="tool-btn" data-cmd="justifyLeft" title="Align left"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h12M1 7h8M1 11h12"/></svg></button>
+      <button class="tool-btn" data-cmd="justifyCenter" title="Align center"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h12M3 7h8M1 11h12"/></svg></button>
+      <button class="tool-btn" data-cmd="justifyRight" title="Align right"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h12M5 7h8M1 11h12"/></svg></button>
+      <div class="tool-divider"></div>
+      <span class="tool-label">color</span>
+      <input type="color" value="#c89a3a" id="colorPick" style="width:22px;height:22px;background:none;border:1px solid var(--line-2);border-radius:2px;cursor:pointer;padding:0"/>
+      <button class="tool-btn" id="wrapEm" title="Italic accent (em)"><span style="font-family:var(--serif);font-style:italic;color:var(--accent)">em</span></button>
+      <div class="tool-divider"></div>
+      <span class="tool-label" id="themeLabel">theme · editorial cream</span>
+      <div style="flex:1"></div>
+      <button class="tool-btn" id="delSlide" title="Delete slide"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg></button>
+    </div>
+
+    <div class="canvas-stage">
+      <div class="slide-canvas" id="canvas">
+        <div class="sc-eyebrow" id="eyebrow" contenteditable="true" spellcheck="false">slide 04 / the market</div>
+        <div class="sc-main">
+          <div class="sc-title" id="titleEl" contenteditable="true" spellcheck="false"></div>
+          <div class="sc-sub" id="subEl" contenteditable="true" spellcheck="false"></div>
+        </div>
+        <div class="sc-foot"><span id="footL">tellar · q2 pitch</span><span id="footR">— / —</span></div>
+      </div>
+    </div>
+
+    <div class="narration-bar">
+      <span class="nb-label" id="narrLabel">narration · slide —</span>
+      <div class="waveform" id="waveform"></div>
+      <span class="narration-time" id="narrTime">— / —</span>
+      <button class="narration-play" id="narrPlay" title="Play narration"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1l7 4-7 4z"/></svg></button>
+      <button class="narration-rec" onclick="switchTab('rec')">record</button>
+    </div>
+  </main>
+
+  <aside class="right-panel">
+    <div class="rp-tabs">
+      <button class="rp-tab active" data-pane="copilot">copilot</button>
+      <button class="rp-tab" data-pane="kb">knowledge</button>
+      <button class="rp-tab" data-pane="rec">recording</button>
+    </div>
+
+    <div class="rp-content">
+
+      <div class="pane active" id="pane-copilot">
+        <div class="copilot-head">
+          <div class="agent-mark">t</div>
+          <div class="agent-info" style="flex:1">
+            <div class="agent-name">Copilot <em>— Tellar agent</em></div>
+            <div class="agent-sub" id="copilotSub">reading the deck…</div>
+          </div>
+        </div>
+
+        <div class="context-chip" id="ctxChip">editing slide —</div>
+
+        <div id="suggestions"></div>
+
+        <div class="copilot-chat">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;margin-bottom:10px">ask the copilot</div>
+          <div class="chat-body" id="copilotChat"></div>
+          <div class="chat-input">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--ink-3)" stroke-width="1.5"><path d="M7 1v12M1 7h12"/></svg>
+            <input type="text" id="copilotInput" placeholder="Build me a risks slide…"/>
+            <button class="chat-send" onclick="sendCopilot()">→</button>
+          </div>
+          <div class="suggest" style="margin-top:10px">
+            <button class="suggest-chip" onclick="copilotAction('rewrite')">rewrite this slide</button>
+            <button class="suggest-chip" onclick="copilotAction('tighten')">tighten subtitle</button>
+            <button class="suggest-chip" onclick="copilotAction('narration')">draft narration</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-kb">
+        <p class="kb-intro">
+          Feed the agent. Anything dropped here becomes <em>context</em> — the agent can answer viewer questions using these sources, and you can cite them in suggestions.
+        </p>
+
+        <div class="kb-dropzone" id="kbDrop">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" stroke-width="1.2"><path d="M12 3v12M6 9l6-6 6 6M3 21h18"/></svg>
+          <div class="kb-title">Drop files or click to upload</div>
+          <div class="kb-sub">PDF · DOCX · CSV · XLSX · TXT · MD</div>
+          <input type="file" id="kbFileInput" multiple style="display:none"/>
+        </div>
+
+        <form onsubmit="addKbUrl(event)" style="display:flex;gap:6px;margin-bottom:18px">
+          <input type="url" id="kbUrlInput" class="field-input" placeholder="https://docs.example.com/…" style="padding:7px 10px;font-size:12px"/>
+          <button class="btn btn-sm" type="submit">Add URL</button>
+        </form>
+
+        <div id="kbCount" style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;margin-bottom:10px"></div>
+        <div class="kb-list" id="kbList"></div>
+
+        <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;margin-bottom:10px">agent scope</div>
+          <label class="toggle" style="margin-bottom:10px">
+            <input type="checkbox" id="agentEnabled" checked/><span class="toggle-sw"></span>
+            <span style="font-size:13px">Let viewers ask the agent</span>
+          </label>
+          <label class="toggle" style="margin-bottom:10px">
+            <input type="checkbox" checked/><span class="toggle-sw"></span>
+            <span style="font-size:13px">Answer using knowledge base</span>
+          </label>
+          <label class="toggle" style="margin-bottom:10px">
+            <input type="checkbox"/><span class="toggle-sw"></span>
+            <span style="font-size:13px">Answer using external web</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" checked/><span class="toggle-sw"></span>
+            <span style="font-size:13px">Always show slide citations</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-rec">
+        <div class="rec-pane-preview">
+          <video id="recPreview" muted autoplay playsinline></video>
+          <div class="rec-pane-placeholder" id="recPlaceholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
+            <div>click start to request camera + mic</div>
+          </div>
+          <div class="rec-live-dot" id="liveDot">REC · <span id="recTimer">00:00</span></div>
+        </div>
+
+        <div class="rec-controls-panel">
+          <button class="rec-big-btn" id="recBtn" onclick="toggleRec()">
+            <span id="recBtnLabel">Start recording</span>
+          </button>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;text-align:center">records the current slide · stored locally in your browser</div>
+        </div>
+
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;margin:18px 0 10px">capture mode</div>
+        <div class="rec-options" id="recModes">
+          <div class="rec-option sel" data-mode="cam-mic"><div class="icn"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="9" cy="7" r="3"/><path d="M3 16c1-3 3.5-4.5 6-4.5s5 1.5 6 4.5"/></svg></div><div class="nm">Cam + Mic</div></div>
+          <div class="rec-option" data-mode="mic"><div class="icn"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="7" y="2" width="4" height="9" rx="2"/><path d="M4 9a5 5 0 0010 0M9 14v2"/></svg></div><div class="nm">Mic only</div></div>
+          <div class="rec-option" data-mode="screen"><div class="icn"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="4" width="14" height="10"/><path d="M7 16h4"/></svg></div><div class="nm">Screen</div></div>
+          <div class="rec-option" data-mode="screen-mic"><div class="icn"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="4" width="14" height="10"/><path d="M7 16h4M9 8v2"/></svg></div><div class="nm">Screen + Mic</div></div>
+        </div>
+
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;margin:22px 0 10px" id="clipsHdr">clips · per slide</div>
+        <div class="clip-list" id="clipList"></div>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<div class="nav-dock">
+  <span class="dock-brand">tellar demo</span>
+  <a href="home.html">home</a>
+  <a href="auth.html">auth</a>
+  <a href="dashboard.html">dashboard</a>
+  <a href="editor.html" class="active">editor</a>
+  <a href="share.html">share</a>
+  <a href="viewer.html">viewer</a>
+<a href="settings.html">settings</a>
+  <a href="handoff.html">handoff</a>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="playback-modal" id="playbackModal">
+  <button class="close" onclick="closePlayback()">✕ close</button>
+  <video id="playbackVideo" controls autoplay></video>
+</div>
+
+<script src="api.js"></script>
+<script src="tellar-ui.js"></script>
+<script>
+if (!TellarAPI.requireSession()) { }
+
+const _urlT = new URLSearchParams(location.search).get('teller');
+const _lsT = localStorage.getItem('currentTellerId');
+const _sess = TellarAPI.session();
+const TELLER = (_urlT && TellarAPI.getTeller(_urlT)) ? _urlT
+             : (_lsT && TellarAPI.getTeller(_lsT)) ? _lsT
+             : (TellarAPI.getTeller('tlr_q2pitch') ? 'tlr_q2pitch'
+             : TellarAPI.listTellers(_sess.workspaceId)[0]?.id);
+localStorage.setItem('currentTellerId', TELLER);
+let slides = TellarAPI.listSlides(TELLER);
+let currentSlideId = slides[3]?.id || slides[0]?.id;
+let recordings = TellarAPI.listRecordings(TELLER);
+
+const session = TellarAPI.session();
+if (session && window.TellarUI){
+  TellarUI.mountCrumbsSwitcher({
+    container: '#crumbs', current: TELLER, after: 'editing',
+    onSwitch: id => {
+      localStorage.setItem('currentTellerId', id);
+      const u = new URL(location.href); u.searchParams.set('teller', id);
+      location.href = u.toString();
+    }
+  });
+  // Re-tag the trailing 'active' segment so existing code can still update it.
+  const _crumbActive = document.querySelector('#crumbs .active');
+  if (_crumbActive) _crumbActive.id = 'crumbSlide';
+  TellarUI.mountAvatarMenu({ host: '#avatar' });
+}
+
+// ============ SLIDE LIST ============
+function renderThumbs(){
+  slides = TellarAPI.listSlides(TELLER);
+  recordings = TellarAPI.listRecordings(TELLER);
+  const host = document.getElementById('thumbList');
+  host.innerHTML = '';
+  document.getElementById('slideCount').textContent = `Slides · ${slides.length}`;
+  slides.forEach(s => {
+    const hasRec = recordings.some(r => r.slideId === s.id);
+    const el = document.createElement('div');
+    el.className = 'slide-thumb' + (s.id === currentSlideId ? ' active' : '');
+    el.innerHTML = `
+      <div class="st-num">${String(s.idx).padStart(2,'0')}</div>
+      <div class="st-card">
+        <div class="st-card-title">${s.title || 'Untitled'}</div>
+        ${hasRec ? '<div class="st-rec-badge" title="has recording"></div>' : ''}
+      </div>`;
+    el.onclick = () => selectSlide(s.id);
+    host.appendChild(el);
+  });
+}
+
+function selectSlide(id){
+  currentSlideId = id;
+  renderThumbs();
+  renderCanvas();
+  renderClips();
+  renderSuggestions();
+  loadRecordingForSlide();
+}
+
+function current(){ return slides.find(s => s.id === currentSlideId); }
+
+function renderCanvas(){
+  const s = current(); if (!s) return;
+  document.getElementById('eyebrow').textContent = s.eyebrow;
+  document.getElementById('titleEl').innerHTML = s.title;
+  document.getElementById('subEl').innerHTML = s.sub;
+  document.getElementById('footR').textContent = `${String(s.idx).padStart(2,'0')} / ${slides.length}`;
+  document.getElementById('slideIndicator').textContent = `slide ${String(s.idx).padStart(2,'0')}`;
+  document.getElementById('crumbSlide').textContent = `editing · slide ${String(s.idx).padStart(2,'0')}`;
+  document.getElementById('narrLabel').textContent = `narration · slide ${String(s.idx).padStart(2,'0')}`;
+  document.getElementById('ctxChip').textContent = `editing slide ${s.idx} · ${(s.eyebrow||'').split('/').pop().trim()}`;
+
+  // waveform from narration duration (visual)
+  const wf = document.getElementById('waveform');
+  wf.innerHTML = '';
+  const bars = 70;
+  for (let i = 0; i < bars; i++){
+    const wb = document.createElement('div');
+    wb.className = 'wave-bar';
+    wb.style.height = (6 + Math.abs(Math.sin(i*0.4 + s.idx)) * 20 + Math.random()*6) + 'px';
+    wf.appendChild(wb);
+  }
+  const rec = recordings.find(r => r.slideId === s.id);
+  if (rec){
+    document.getElementById('narrTime').textContent = fmtTime(rec.durationMs);
+    wf.querySelectorAll('.wave-bar').forEach((b,i) => { if (i < bars*0.8) b.classList.add('active'); });
+  } else {
+    document.getElementById('narrTime').textContent = s.narrationDur ? `0:00 / ${fmtTime(s.narrationDur*1000)}` : '— / —';
+  }
+}
+
+function fmtTime(ms){
+  const s = Math.round(ms/1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+// ============ LIVE EDITS → DB ============
+let saveTimer = null;
+function debounceSave(){
+  document.getElementById('saveState').textContent = 'saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const s = current(); if (!s) return;
+    const title = document.getElementById('titleEl').innerHTML;
+    const sub = document.getElementById('subEl').innerHTML;
+    const eyebrow = document.getElementById('eyebrow').textContent;
+    TellarAPI.updateSlide(TELLER, s.id, {title, sub, eyebrow});
+    const t = new Date();
+    document.getElementById('saveState').textContent = `saved · ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+    // re-render thumb title
+    slides = TellarAPI.listSlides(TELLER);
+    const host = document.getElementById('thumbList');
+    const thumb = [...host.children].find((_, i) => slides[i].id === s.id);
+    if (thumb) thumb.querySelector('.st-card-title').innerHTML = title;
+  }, 400);
+}
+
+['titleEl','subEl','eyebrow'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', debounceSave);
+});
+
+// ============ STYLE BAR ============
+document.querySelectorAll('[data-cmd]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.execCommand(btn.dataset.cmd, false, null);
+    const t = document.getElementById('titleEl');
+    if (document.activeElement === t || t.contains(document.activeElement)) t.focus();
+    debounceSave();
+  });
+});
+document.getElementById('fontSize').addEventListener('change', e => {
+  document.getElementById('titleEl').style.fontSize = e.target.value;
+  debounceSave();
+});
+document.getElementById('fontFamily').addEventListener('change', e => {
+  document.getElementById('titleEl').style.fontFamily = e.target.value;
+  debounceSave();
+});
+document.getElementById('colorPick').addEventListener('input', e => {
+  document.execCommand('foreColor', false, e.target.value);
+  debounceSave();
+});
+document.getElementById('wrapEm').addEventListener('click', () => {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return;
+  const em = document.createElement('em');
+  try{ range.surroundContents(em); sel.removeAllRanges(); debounceSave(); }catch(e){ /* cross-element */ }
+});
+document.getElementById('delSlide').addEventListener('click', () => {
+  if (slides.length <= 1) return toast('Cannot delete the last slide');
+  if (!confirm('Delete this slide?')) return;
+  const s = current();
+  TellarAPI.deleteSlide(TELLER, s.id);
+  slides = TellarAPI.listSlides(TELLER);
+  currentSlideId = slides[0].id;
+  renderThumbs(); renderCanvas(); renderClips();
+  toast('Slide deleted');
+});
+
+function addSlide(){
+  TellarAPI.addSlide(TELLER);
+  slides = TellarAPI.listSlides(TELLER);
+  currentSlideId = slides[slides.length-1].id;
+  renderThumbs(); renderCanvas();
+}
+
+// ============ TAB SWITCH ============
+function switchTab(name){
+  document.querySelectorAll('.rp-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === name));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+}
+document.querySelectorAll('.rp-tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.pane)));
+
+// ============ COPILOT ============
+document.getElementById('copilotSub').textContent = `${slides.length} slides · ${TellarAPI.listKB(TELLER).length} KB sources`;
+
+function renderSuggestions(){
+  const s = current(); if (!s) return;
+  const m = TellarAPI.dashboardMetrics(TELLER);
+  const suggestions = [];
+  const dropHere = m.funnel.find(f => f.idx === s.idx);
+  if (dropHere && dropHere.drop >= 15){
+    suggestions.push({kind:'rewrite', title:`This slide loses ${dropHere.drop}% of viewers`, body:'Try a stronger opening line. Click "Apply" to generate a Claude rewrite.', action:'rewrite'});
+  }
+  // most-asked question
+  const qs = TellarAPI.queryEvents({tellerId:TELLER, type:'agent_query'});
+  const counts = {};
+  qs.forEach(q => { const k = (q.question||'').toLowerCase(); counts[k] = (counts[k]||0)+1; });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  if (top && top[1] >= 3){
+    suggestions.push({kind:'structure', title:`Viewers ask "${top[0]}" ${top[1]}×`, body:'Consider adding a slide that answers this directly, or expanding the KB.', action:'structure'});
+  }
+  if (!recordings.find(r => r.slideId === s.id)){
+    suggestions.push({kind:'narration', title:'No narration yet for this slide', body:'Click record to capture narration — the agent will use the transcript to answer audio-based questions.', action:'record'});
+  }
+  const host = document.getElementById('suggestions');
+  host.innerHTML = suggestions.map((x, i) => `
+    <div class="suggestion-card">
+      <div class="sc-kind ${x.kind}">${x.kind === 'rewrite' ? '✦ rewrite' : x.kind === 'structure' ? '↗ structure' : '♫ narration'}</div>
+      <div class="sc-title-sugg">${x.title}</div>
+      <div style="font-size:12px;color:var(--ink-2);line-height:1.55">${x.body}</div>
+      <div class="sc-actions">
+        <button class="sc-apply" onclick="suggestionApply(${i}, '${x.action}')">Apply →</button>
+        <button class="sc-dismiss" onclick="this.closest('.suggestion-card').remove()">Later</button>
+      </div>
+    </div>`).join('');
+  if (!suggestions.length){
+    host.innerHTML = '<div style="padding:20px;border:1px dashed var(--line);font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:center">Copilot is clean. No urgent suggestions for this slide.</div>';
+  }
+}
+
+async function suggestionApply(_, action){
+  if (action === 'record'){ switchTab('rec'); return; }
+  const s = current();
+  toast(action === 'structure' ? 'Drafting new slide…' : 'Asking Claude…');
+  const out = await TellarAPI.copilotSuggest({tellerId:TELLER, slideId:s.id, kind: action});
+
+  if (action === 'structure'){
+    // Parse title|subtitle and insert a NEW slide right after the current one
+    const [titleRaw, subRaw] = (out.includes('|') ? out.split('|') : [out, '']).map(x => x.trim());
+    const ns = TellarAPI.addSlide(TELLER);
+    ns.title = titleRaw || 'New slide';
+    ns.sub = subRaw || '';
+    ns.eyebrow = `slide ${String(ns.idx).padStart(2,'0')}`;
+    // Reorder: move the new slide (at the end) to be right after the current one
+    const all = TellarAPI.listSlides(TELLER);
+    const curIdx = all.findIndex(x => x.id === s.id);
+    const newIdx = all.findIndex(x => x.id === ns.id);
+    if (curIdx >= 0 && newIdx >= 0 && newIdx !== curIdx + 1){
+      const [moved] = all.splice(newIdx, 1);
+      all.splice(curIdx + 1, 0, moved);
+      all.forEach((x, i) => x.idx = i + 1);
+      TellarAPI._raw().LS.set('slides:' + TELLER, all);
+    }
+    // Refresh local slides cache + UI
+    slides = TellarAPI.listSlides(TELLER);
+    currentSlideId = ns.id;
+    renderClips(); renderCanvas(); renderSuggestions();
+    appendCopilot('assistant', `Drafted a new slide — <b>${titleRaw}</b>. Inserted after slide ${s.idx}. Edit freely.`);
+    toast('New slide added');
+    return;
+  }
+
+  // try to split on pipe for rewrite
+  if (action === 'rewrite' && out.includes('|')){
+    const [t, sub] = out.split('|').map(x => x.trim());
+    document.getElementById('titleEl').innerHTML = t;
+    document.getElementById('subEl').innerHTML = sub;
+  } else {
+    appendCopilot('assistant', out);
+  }
+  debounceSave();
+  toast('Applied');
+}
+
+async function copilotAction(kind){
+  const s = current();
+  const msg = {rewrite:'Rewrite this slide', tighten:'Tighten the subtitle', narration:'Draft a 20s narration'}[kind];
+  appendCopilot('user', msg);
+  const out = await TellarAPI.copilotSuggest({tellerId:TELLER, slideId:s.id, kind});
+  appendCopilot('assistant', out);
+}
+
+function appendCopilot(role, content){
+  const host = document.getElementById('copilotChat');
+  const el = document.createElement('div');
+  el.className = 'msg ' + (role === 'user' ? 'user' : '');
+  el.innerHTML = `
+    <div class="msg-avatar ${role === 'user' ? 'ma-user' : 'ma-agent'}">${role === 'user' ? 'M' : 't'}</div>
+    <div class="msg-bubble">${content.replace(/\n/g,'<br/>')}</div>`;
+  host.appendChild(el);
+  host.parentElement.scrollTop = host.parentElement.scrollHeight;
+}
+
+async function sendCopilot(){
+  const input = document.getElementById('copilotInput');
+  const q = input.value.trim(); if (!q) return;
+  input.value = '';
+  appendCopilot('user', q);
+  const out = await TellarAPI.askAgent({tellerId:TELLER, question: q});
+  appendCopilot('assistant', TellarAPI.citeToHtml(out));
+}
+document.getElementById('copilotInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendCopilot(); });
+
+// ============ KNOWLEDGE BASE ============
+function renderKB(){
+  const kb = TellarAPI.listKB(TELLER);
+  document.getElementById('kbCount').textContent = `${kb.length} sources · ${kb.filter(x=>x.indexed).length} indexed`;
+  const host = document.getElementById('kbList');
+  host.innerHTML = kb.map(k => `
+    <div class="kb-item" data-id="${k.id}">
+      <div class="kb-icon ${k.kind}">${k.kind.toUpperCase()}</div>
+      <div class="kb-info">
+        <div class="kb-name">${k.name}</div>
+        <div class="kb-meta">${k.pages ? k.pages + ' pages' : (k.bytes ? (k.bytes/1024|0) + ' KB' : '')} · added ${timeAgo(k.addedAt)}</div>
+      </div>
+      <div class="kb-status ${k.indexed ? '' : 'indexing'}">${k.indexed ? 'indexed' : 'indexing…'}</div>
+      <button class="kb-delete" onclick="removeKB('${k.id}')" title="Remove">×</button>
+    </div>`).join('');
+  document.getElementById('copilotSub').textContent = `${slides.length} slides · ${kb.length} KB sources`;
+}
+async function removeKB(id){
+  await TellarAPI.removeKB(TELLER, id);
+  renderKB();
+  toast('Removed from knowledge base');
+}
+function addKbUrl(e){
+  e.preventDefault();
+  const input = document.getElementById('kbUrlInput');
+  const url = input.value.trim(); if (!url) return;
+  TellarAPI.addKBUrl(TELLER, url);
+  input.value = '';
+  renderKB();
+  setTimeout(renderKB, 1700);
+  toast('URL added · indexing');
+  return false;
+}
+const drop = document.getElementById('kbDrop');
+const fileInput = document.getElementById('kbFileInput');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('drag'); };
+drop.ondragleave = () => drop.classList.remove('drag');
+drop.ondrop = async e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  for (const f of e.dataTransfer.files) await TellarAPI.addKBFile(TELLER, f);
+  renderKB();
+  setTimeout(renderKB, 1600);
+  toast('Files added · indexing');
+};
+fileInput.onchange = async e => {
+  for (const f of e.target.files) await TellarAPI.addKBFile(TELLER, f);
+  renderKB();
+  setTimeout(renderKB, 1600);
+  toast('Files added · indexing');
+};
+
+// ============ RECORDING ============
+let recMode = 'cam-mic';
+document.querySelectorAll('#recModes .rec-option').forEach(opt => {
+  opt.onclick = () => {
+    document.querySelectorAll('#recModes .rec-option').forEach(x => x.classList.remove('sel'));
+    opt.classList.add('sel');
+    recMode = opt.dataset.mode;
+    if (mediaStream){ stopMediaStream(); startPreview(); }
+  };
+});
+
+let mediaStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let recStartAt = 0;
+let recTimerInterval = null;
+let recording = false;
+
+async function startPreview(){
+  try{
+    if (recMode === 'cam-mic'){
+      mediaStream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:400}, audio:true});
+    } else if (recMode === 'mic'){
+      mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    } else if (recMode === 'screen'){
+      mediaStream = await navigator.mediaDevices.getDisplayMedia({video:true});
+    } else if (recMode === 'screen-mic'){
+      const disp = await navigator.mediaDevices.getDisplayMedia({video:true});
+      const mic = await navigator.mediaDevices.getUserMedia({audio:true});
+      mediaStream = new MediaStream([...disp.getTracks(), ...mic.getTracks()]);
+    }
+    document.getElementById('recPreview').srcObject = mediaStream;
+    document.getElementById('recPlaceholder').style.display = mediaStream.getVideoTracks().length ? 'none' : 'flex';
+    if (!mediaStream.getVideoTracks().length){
+      document.getElementById('recPlaceholder').innerHTML = '<div style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-2);text-transform:uppercase">audio-only · mic active</div>';
+    }
+    return true;
+  }catch(err){
+    toast('Camera/mic denied: ' + err.message);
+    return false;
+  }
+}
+function stopMediaStream(){
+  if (mediaStream){ mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  document.getElementById('recPreview').srcObject = null;
+  document.getElementById('recPlaceholder').style.display = 'flex';
+}
+
+async function toggleRec(){
+  if (recording){
+    mediaRecorder.stop();
+    return;
+  }
+  if (!mediaStream){ const ok = await startPreview(); if (!ok) return; }
+  recordedChunks = [];
+  const mime = mediaStream.getVideoTracks().length
+    ? (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : 'video/webm')
+    : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm');
+  try{ mediaRecorder = new MediaRecorder(mediaStream, {mimeType: mime}); }
+  catch(e){ mediaRecorder = new MediaRecorder(mediaStream); }
+  mediaRecorder.ondataavailable = e => { if (e.data.size) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = async () => {
+    const blob = new Blob(recordedChunks, {type: mime});
+    const durationMs = Date.now() - recStartAt;
+    const s = current();
+    await TellarAPI.saveRecording(TELLER, {slideId: s.id, slideIdx: s.idx, blob, durationMs, mode: recMode});
+    recordings = TellarAPI.listRecordings(TELLER);
+    recording = false;
+    document.getElementById('recBtn').classList.remove('recording');
+    document.getElementById('recBtnLabel').textContent = 'Start recording';
+    document.getElementById('liveDot').classList.remove('on');
+    clearInterval(recTimerInterval);
+    renderThumbs(); renderCanvas(); renderClips();
+    toast(`Saved · ${fmtTime(durationMs)}`);
+  };
+  mediaRecorder.start();
+  recStartAt = Date.now();
+  recording = true;
+  document.getElementById('recBtn').classList.add('recording');
+  document.getElementById('recBtnLabel').textContent = 'Stop recording';
+  document.getElementById('liveDot').classList.add('on');
+  recTimerInterval = setInterval(() => {
+    document.getElementById('recTimer').textContent = fmtTime(Date.now() - recStartAt);
+  }, 200);
+}
+
+function loadRecordingForSlide(){
+  // scroll current clip into view in clip list
+  setTimeout(() => {
+    const el = document.querySelector('.clip-item.current');
+    if (el) el.scrollIntoView({block:'nearest', behavior:'smooth'});
+  }, 50);
+}
+
+function renderClips(){
+  recordings = TellarAPI.listRecordings(TELLER);
+  const host = document.getElementById('clipList');
+  const withClips = slides.map(s => ({slide: s, rec: recordings.find(r => r.slideId === s.id)}));
+  host.innerHTML = withClips.map(({slide, rec}) => `
+    <div class="clip-item ${slide.id === currentSlideId ? 'current' : ''}" data-slide="${slide.id}">
+      <div class="clip-num">${String(slide.idx).padStart(2,'0')}</div>
+      <div class="clip-meta">
+        <div class="clip-title">${(slide.title||'').replace(/<[^>]+>/g,'').slice(0,40) || 'Untitled'}</div>
+        <div class="clip-sub">${rec ? rec.mode + ' · ' + Math.round(rec.bytes/1024) + ' KB' : 'no recording'}</div>
+      </div>
+      <span class="clip-time">${rec ? fmtTime(rec.durationMs) : '—'}</span>
+      <button class="clip-play" ${rec ? `onclick="playClip('${rec.id}', '${rec.mime||'video/webm'}')"` : 'disabled style="opacity:.3"'}>
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><path d="M1 0l6 4-6 4z"/></svg>
+      </button>
+    </div>`).join('');
+  document.getElementById('clipsHdr').textContent = `clips · ${recordings.length} of ${slides.length} slides recorded`;
+}
+
+async function playClip(id, mime){
+  const blob = await TellarAPI.getRecordingBlob(id);
+  if (!blob) return toast('Recording not found');
+  const modal = document.getElementById('playbackModal');
+  const video = document.getElementById('playbackVideo');
+  video.src = URL.createObjectURL(blob);
+  modal.classList.add('show');
+}
+function closePlayback(){
+  const modal = document.getElementById('playbackModal');
+  const video = document.getElementById('playbackVideo');
+  video.pause(); video.src = '';
+  modal.classList.remove('show');
+}
+
+// narration playback
+document.getElementById('narrPlay').addEventListener('click', async () => {
+  const rec = recordings.find(r => r.slideId === currentSlideId);
+  if (!rec) return toast('No narration recorded for this slide');
+  playClip(rec.id, rec.mime);
+});
+
+// ============ HELPERS ============
+function timeAgo(ts){
+  const d = (Date.now()-ts)/1000;
+  if (d < 60) return 'just now';
+  if (d < 3600) return `${Math.round(d/60)}m ago`;
+  if (d < 86400) return `${Math.round(d/3600)}h ago`;
+  return `${Math.round(d/86400)}d ago`;
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ============ INIT ============
+renderThumbs();
+renderCanvas();
+renderClips();
+renderSuggestions();
+renderKB();
+</script>
+</body>
+</html>

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { api } from '@/lib/api';
 import { sanitizeSlideHtml } from '@/lib/sanitize';
+import { NarrationPanel } from './NarrationPanel';
 
 interface Slide {
   id: string;
@@ -126,65 +127,16 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
       {/* Right panel: narration + KB */}
       <aside style={{ borderLeft: '1px solid var(--line)', padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <NarrationPanel teller={teller} active={active} onUpdate={(patch: Partial<Slide>) => active && save(active.id, patch)} />
+        <NarrationPanel
+          tellerId={teller.id}
+          slides={teller.slides.map(s => ({ id: s.id, idx: s.idx, title: s.title, notes: s.notes }))}
+          active={active}
+          initialRecordings={teller.recordings || []}
+          onNotesChange={notes => active && save(active.id, { notes })}
+        />
         <KBPanel tellerId={teller.id} initial={teller.kbSources} />
       </aside>
     </main>
-  );
-}
-
-function NarrationPanel({ teller, active, onUpdate }: any) {
-  const [recording, setRecording] = useState(false);
-  const chunks = useRef<Blob[]>([]);
-  const recRef = useRef<MediaRecorder | null>(null);
-
-  async function start() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      chunks.current = [];
-      rec.ondataavailable = e => e.data.size && chunks.current.push(e.data);
-      rec.onstop = async () => {
-        const blob = new Blob(chunks.current, { type: 'audio/webm' });
-        stream.getTracks().forEach(t => t.stop());
-        const up = await api<{ id: string; uploadUrl: string; method: string; headers: any }>(
-          '/recordings/upload-url', { method: 'POST', json: { tellerId: teller.id, slideId: active?.id, mode: 'voice', contentType: blob.type } },
-        );
-        await fetch(up.uploadUrl, { method: up.method, body: blob, headers: up.headers });
-        await api(`/recordings/${up.id}/confirm`, { method: 'POST', json: { sizeBytes: blob.size, durationMs: 0 } });
-      };
-      rec.start();
-      recRef.current = rec;
-      setRecording(true);
-    } catch {
-      alert('Mic permission denied.');
-    }
-  }
-
-  function stop() {
-    recRef.current?.stop();
-    setRecording(false);
-  }
-
-  return (
-    <div className="panel" style={{ padding: 16 }}>
-      <header className="section-head" style={{ marginBottom: 12 }}>
-        <h2 style={{ fontSize: 14 }}><span className="num">R</span>Narration</h2>
-      </header>
-      <button className={`btn ${recording ? 'btn-primary' : 'btn-ghost'}`} onClick={recording ? stop : start} style={{ width: '100%' }}>
-        {recording ? '● Stop recording' : '⏺ Record slide narration'}
-      </button>
-      <div className="note" style={{ marginTop: 10 }}>
-        Browser-native MediaRecorder → confirmed upload. In prod, transcode + Whisper transcript run in the queue.
-      </div>
-      <textarea
-        defaultValue={active?.notes || ''}
-        onBlur={e => onUpdate({ notes: e.target.value })}
-        placeholder="Speaker notes…"
-        className="field-input"
-        style={{ marginTop: 12, minHeight: 90, fontFamily: 'var(--serif)', fontStyle: 'italic' }}
-      />
-    </div>
   );
 }
 

@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tellar — Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  html,body{overflow:hidden;height:100vh}
+  .viewer-top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:rgba(12,13,15,.6);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .viewer-top .vt-left{display:flex;align-items:center;gap:14px}
+  .vt-brand{font-family:var(--serif);font-style:italic;font-weight:500;font-size:18px;letter-spacing:-.02em;color:var(--ink)}
+  .vt-brand::first-letter{color:var(--accent)}
+  .vt-title{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-2);text-transform:uppercase;padding-left:14px;border-left:1px solid var(--line)}
+  .vt-title b{color:var(--ink);font-weight:500}
+  .vt-right{display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase}
+  .vt-watermark{display:flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line-2);border-radius:20px}
+  .vt-watermark::before{content:'';width:5px;height:5px;background:var(--good);border-radius:50%}
+
+  .viewer-layout{display:grid;grid-template-columns:1fr 420px;height:100vh;padding-top:58px;position:relative;z-index:3;transition:grid-template-columns .35s cubic-bezier(.2,.8,.2,1)}
+  .viewer-layout.chat-closed{grid-template-columns:1fr 0px}
+  .viewer-layout.chat-closed .viewer-chat{transform:translateX(100%)}
+  .viewer-layout.no-agent{grid-template-columns:1fr}
+  .viewer-layout.no-agent .viewer-chat{display:none}
+
+  .viewer-stage{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 60px 120px;overflow:hidden}
+  .viewer-stage::before{content:'';position:absolute;inset:0;background:radial-gradient(800px 400px at 30% 20%, rgba(244,185,66,.04), transparent 60%),radial-gradient(600px 400px at 80% 80%, rgba(159,143,211,.04), transparent 60%)}
+
+  .slide-stage{width:min(980px,94%);aspect-ratio:16/10;background:#f6f3ed;color:#1a1a1a;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.3);position:relative;overflow:hidden;z-index:2;display:flex;flex-direction:column;transition:opacity .3s}
+  .slide-stage.swap{opacity:0}
+  .slide-content{flex:1;padding:70px 80px;display:flex;flex-direction:column;justify-content:space-between;position:relative}
+  .ss-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.25em;color:#888;text-transform:uppercase}
+  .ss-title{font-family:var(--serif);font-size:76px;font-weight:400;line-height:1.02;letter-spacing:-.025em;margin:14px 0}
+  .ss-title em{font-style:italic;color:#c89a3a}
+  .ss-sub{font-family:var(--serif);font-style:italic;font-size:22px;color:#555;line-height:1.4;max-width:70%}
+  .ss-foot{font-family:var(--mono);font-size:11px;color:#aaa;display:flex;justify-content:space-between;align-items:flex-end}
+  .slide-watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.05;font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:#000;text-transform:uppercase;transform:rotate(-30deg)}
+
+  .narrator{position:absolute;bottom:24px;right:24px;width:130px;height:130px;border-radius:50%;background:linear-gradient(135deg,#3a2a2a,#1a1a1a);border:3px solid #f6f3ed;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;z-index:5;cursor:pointer;transition:transform .25s}
+  .narrator:hover{transform:scale(1.05)}
+  .narrator video{width:100%;height:100%;object-fit:cover}
+  .narrator-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;font-size:48px;color:#e8e6e1}
+  .narrator-ring{position:absolute;inset:-6px;border:2px solid var(--accent);border-radius:50%;animation:npulse 2s ease-in-out infinite;display:none}
+  .narrator.playing .narrator-ring{display:block}
+  @keyframes npulse{0%,100%{opacity:.3;transform:scale(.98)}50%{opacity:.8;transform:scale(1.02)}}
+  .narrator-live{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);padding:2px 8px;background:var(--bad);color:#fff;font-family:var(--mono);font-size:8px;letter-spacing:.2em;text-transform:uppercase;border:2px solid #f6f3ed;border-radius:10px;font-weight:600}
+
+  .player-bar{width:min(980px,94%);margin-top:18px;display:flex;align-items:center;gap:14px;padding:12px 18px;background:rgba(12,13,15,.75);backdrop-filter:blur(14px);border:1px solid var(--line)}
+  .pb-btn{width:32px;height:32px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .pb-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .pb-btn.big{width:40px;height:40px;background:var(--accent);color:#0c0d0f;border-color:var(--accent)}
+  .pb-btn.big:hover{background:#e8ad3a}
+  .pb-progress{flex:1;display:flex;align-items:center;gap:10px}
+  .pb-time{font-family:var(--mono);font-size:11px;color:var(--ink-2);min-width:44px}
+  .pb-track{flex:1;height:4px;background:var(--line);border-radius:2px;position:relative;overflow:hidden;cursor:pointer}
+  .pb-track-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:2px;transition:width .1s linear}
+
+  .slide-nav{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:4px;padding:6px 10px;background:rgba(12,13,15,.9);backdrop-filter:blur(14px);border:1px solid var(--line-2);border-radius:40px;font-family:var(--mono);font-size:10px;color:var(--ink-2);max-width:90vw;overflow-x:auto}
+  .slide-nav-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;background:transparent;border:none;color:var(--ink-3);font-family:var(--mono);font-size:9px;flex-shrink:0}
+  .slide-nav-dot:hover{color:var(--ink);background:var(--panel)}
+  .slide-nav-dot.active{color:#0c0d0f;background:var(--accent)}
+  .slide-nav-dot.viewed{color:var(--ink-2)}
+  .slide-nav-sep{width:1px;height:14px;background:var(--line);margin:0 4px;align-self:center;flex-shrink:0}
+  .slide-arrow{width:26px;height:26px;border-radius:50%;border:none;background:transparent;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .2s;flex-shrink:0}
+  .slide-arrow:hover{color:var(--accent)}
+
+  .viewer-chat{border-left:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.2,.8,.2,1);position:relative;overflow:hidden}
+  .vc-head{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .vc-agent{width:36px;height:36px;border:1px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;color:var(--accent);font-size:18px;position:relative;flex-shrink:0}
+  .vc-agent::before{content:'';position:absolute;inset:-3px;border:1px dashed var(--line-2);border-radius:50%;animation:rot 20s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .vc-info{flex:1}
+  .vc-name{font-family:var(--serif);font-size:15px;font-weight:500}
+  .vc-name em{font-style:italic;color:var(--accent)}
+  .vc-sub{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;margin-top:2px}
+  .vc-close{width:26px;height:26px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .vc-close:hover{border-color:var(--accent);color:var(--accent)}
+  .vc-body{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  .vc-footer{padding:14px 20px;border-top:1px solid var(--line)}
+  .chat-welcome{padding:12px 14px;background:rgba(244,185,66,.05);border:1px solid rgba(244,185,66,.15);font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-2);line-height:1.55;margin-bottom:4px}
+  .chat-welcome em{color:var(--accent);font-weight:500}
+  .typing{display:inline-flex;gap:3px;padding:8px 0}
+  .typing span{width:6px;height:6px;background:var(--ink-3);border-radius:50%;animation:blink 1.2s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}
+  .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.3}30%{opacity:1}}
+
+  .chat-fab{position:fixed;bottom:28px;right:28px;z-index:60;width:54px;height:54px;border-radius:50%;background:var(--accent);color:#0c0d0f;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(244,185,66,.3),0 4px 10px rgba(0,0,0,.4);transition:transform .2s;font-family:var(--serif);font-style:italic;font-size:22px}
+  .chat-fab:hover{transform:scale(1.08)}
+  .viewer-layout.chat-closed ~ .chat-fab{display:flex}
+
+  /* Gate (email / passphrase) */
+  .gate-overlay{position:fixed;inset:0;z-index:100;background:rgba(12,13,15,.96);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:center;padding:24px}
+  .gate-card{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);padding:32px;position:relative}
+  .gate-card h2{font-family:var(--serif);font-size:30px;font-weight:400;letter-spacing:-.02em;margin-bottom:10px}
+  .gate-card h2 em{font-style:italic;color:var(--accent)}
+  .gate-card p{font-size:14px;color:var(--ink-2);line-height:1.55;margin-bottom:22px}
+  .gate-card p em{font-family:var(--serif);font-style:italic;color:var(--ink)}
+  .gate-error{color:var(--bad);font-family:var(--mono);font-size:11px;margin-top:12px;letter-spacing:.05em;min-height:14px}
+
+  .no-agent-note{padding:12px;font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase;text-align:center;border:1px dashed var(--line);margin-top:10px}
+
+  @media (max-width:1100px){
+    .viewer-layout{grid-template-columns:1fr}
+    .viewer-chat{position:fixed;right:0;top:58px;bottom:0;width:400px;z-index:40;box-shadow:-10px 0 40px rgba(0,0,0,.4)}
+    .viewer-layout.chat-closed .viewer-chat{transform:translateX(100%)}
+  }
+  @media (max-width:640px){
+    .viewer-stage{padding:20px}
+    .ss-title{font-size:40px}
+    .ss-sub{font-size:16px;max-width:100%}
+    .slide-content{padding:30px}
+    .narrator{width:80px;height:80px;bottom:12px;right:12px}
+    .narrator-fallback{font-size:30px}
+    .viewer-chat{width:100%}
+    .vt-title{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="viewer-top">
+  <div class="vt-left">
+    <span class="vt-brand">tellar</span>
+    <span class="vt-title"><b id="deckTitle">—</b> · by Martín</span>
+  </div>
+  <div class="vt-right">
+    <span class="vt-watermark" id="vtEmail">guest</span>
+    <span id="slideCount">— / —</span>
+  </div>
+</div>
+
+<div class="viewer-layout" id="layout">
+
+  <main class="viewer-stage">
+
+    <div class="slide-stage fade-in d1" id="slideStage">
+      <div class="slide-watermark" id="slideWatermark"></div>
+      <div class="slide-content">
+        <div class="ss-eyebrow" id="slideEyebrow"></div>
+        <div>
+          <div class="ss-title" id="slideTitle"></div>
+          <div class="ss-sub" id="slideSub"></div>
+        </div>
+        <div class="ss-foot">
+          <span id="slideFootL">tellar</span>
+          <span id="slideFootR">— / —</span>
+        </div>
+        <div class="narrator" id="narrator" title="Click to play narration">
+          <video id="narratorVideo" playsinline style="display:none"></video>
+          <div class="narrator-fallback" id="narratorFallback">M</div>
+          <div class="narrator-ring"></div>
+          <div class="narrator-live" id="narratorLive" style="display:none">live</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="player-bar fade-in d2">
+      <button class="pb-btn" id="prevBtn" title="Previous slide"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2L4 6l4 4"/></svg></button>
+      <button class="pb-btn big" id="playBtn" title="Play/Pause"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 2l9 5-9 5z"/></svg></button>
+      <button class="pb-btn" id="nextBtn" title="Next slide"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2l4 4-4 4"/></svg></button>
+      <div class="pb-progress">
+        <span class="pb-time" id="timeCur">0:00</span>
+        <div class="pb-track" id="track"><div class="pb-track-fill" id="trackFill"></div></div>
+        <span class="pb-time" id="timeTot">0:00</span>
+      </div>
+      <button class="pb-btn" id="muteBtn" title="Mute"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4v4h2l3 2V2L4 4z"/><path d="M9 4l2 4M11 4l-2 4"/></svg></button>
+    </div>
+
+    <div class="slide-nav" id="slideNav"></div>
+  </main>
+
+  <aside class="viewer-chat" id="chat">
+    <div class="vc-head">
+      <div class="vc-agent">t</div>
+      <div class="vc-info">
+        <div class="vc-name">Ask the deck <em>— agent</em></div>
+        <div class="vc-sub" id="agentSub">—</div>
+      </div>
+      <button class="vc-close" id="closeChat" title="Close">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l6 6M9 3l-6 6"/></svg>
+      </button>
+    </div>
+
+    <div class="vc-body" id="chatBody">
+      <div class="chat-welcome">
+        <span id="welcomeMsg">Hi — I'm the agent for this tellar. Ask me anything about the deck, Martín's narration, or the attached knowledge base.</span>
+      </div>
+    </div>
+
+    <div class="vc-footer">
+      <div class="chat-input">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--ink-3)" stroke-width="1.5"><path d="M7 1v12M1 7h12"/></svg>
+        <input type="text" placeholder="Ask anything about this deck…" id="chatInput"/>
+        <button class="chat-send" id="chatSend"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6h10M7 2l4 4-4 4"/></svg></button>
+      </div>
+      <div style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:.1em;display:flex;justify-content:space-between">
+        <span>enter to send</span>
+        <span>answers from the deck only</span>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<button class="chat-fab" id="openChat">t</button>
+
+<div class="gate-overlay" id="gate" style="display:none">
+  <div class="gate-card">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase;margin-bottom:14px">tellar · private viewing</span></div>
+    <h2 id="gateTitle">Who's <em>joining?</em></h2>
+    <p id="gateDesc">Martín would like to know who viewed this deck. Your email stays private and is only shared with him.</p>
+    <form id="gateForm">
+      <div class="field" id="gateEmailField">
+        <label class="field-label">your work email</label>
+        <input type="email" class="field-input" id="gateEmail" placeholder="you@company.com" required/>
+      </div>
+      <div class="field" id="gatePassField" style="display:none">
+        <label class="field-label">passphrase</label>
+        <input type="password" class="field-input" id="gatePass" placeholder="••••••••"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px" type="submit">Open the deck →</button>
+      <div class="gate-error" id="gateError"></div>
+    </form>
+  </div>
+</div>
+
+<div class="nav-dock">
+  <span class="dock-brand">tellar demo</span>
+  <a href="home.html">home</a>
+  <a href="auth.html">auth</a>
+  <a href="dashboard.html">dashboard</a>
+  <a href="editor.html">editor</a>
+  <a href="share.html">share</a>
+  <a href="viewer.html" class="active">viewer</a>
+<a href="settings.html">settings</a>
+  <a href="handoff.html">handoff</a>
+</div>
+
+<script src="api.js"></script>
+<script>
+const _urlT = new URLSearchParams(location.search).get('teller');
+const _lsT = localStorage.getItem('currentTellerId');
+const TELLER = (_urlT && TellarAPI.getTeller(_urlT)) ? _urlT
+             : (_lsT && TellarAPI.getTeller(_lsT)) ? _lsT
+             : 'tlr_q2pitch';
+const teller = { title: 'Q2 Series A pitch' };
+let slides = [];
+let share = null;
+let viewerEmail = null;
+let sessionId = 'sess_' + Math.random().toString(36).slice(2,10);
+let currentIdx = 1;
+let viewed = new Set();
+let slideEnteredAt = 0;
+let slideTimer = null;
+let slideDurMs = 12000;
+let slideProgress = 0;
+let playing = true;
+let narratorBlob = null;
+let narratorVideo = document.getElementById('narratorVideo');
+
+// ============ GATE ============
+function showGate(reason, share){
+  const gate = document.getElementById('gate');
+  const emailField = document.getElementById('gateEmailField');
+  const passField = document.getElementById('gatePassField');
+  const err = document.getElementById('gateError');
+  gate.style.display = 'flex';
+  err.textContent = '';
+
+  if (reason === 'passphrase-required'){
+    document.getElementById('gateTitle').innerHTML = 'Enter the <em>passphrase</em>';
+    document.getElementById('gateDesc').textContent = 'This deck is shared with a passphrase. Martín gave it to you separately.';
+    emailField.style.display = 'block';
+    passField.style.display = 'block';
+  } else if (reason === 'domain-blocked'){
+    document.getElementById('gateTitle').innerHTML = 'That email <em>can\u2019t</em> open this';
+    document.getElementById('gateDesc').textContent = 'Your address isn\u2019t on the allow-list. Use a different email or ask Martín for a personal invite.';
+    err.textContent = 'not on allow-list · try another address';
+  } else if (reason === 'not-invited'){
+    document.getElementById('gateTitle').innerHTML = 'Invite <em>only</em>';
+    document.getElementById('gateDesc').textContent = 'Martín shared this deck with specific people. Use the email you were invited as.';
+  } else if (reason === 'expired'){
+    document.getElementById('gateTitle').innerHTML = 'This link <em>has expired</em>';
+    document.getElementById('gateDesc').textContent = 'Ask Martín for a fresh link.';
+    emailField.style.display = 'none';
+    document.querySelector('#gateForm .btn').style.display = 'none';
+  }
+}
+
+document.getElementById('gateForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('gateEmail').value.trim();
+  const pass = document.getElementById('gatePass').value.trim();
+  const err = document.getElementById('gateError');
+  const auth = TellarAPI.authorizeViewer(TELLER, email);
+  if (!auth.ok && auth.reason !== 'passphrase-required'){ showGate(auth.reason, auth.share); return; }
+  if (share && share.accessMode === 'passphrase'){
+    if (!share.passphrase || pass !== share.passphrase){ err.textContent = 'incorrect passphrase'; return; }
+  }
+  viewerEmail = email;
+  localStorage.setItem('tellar:viewer-email', email);
+  document.getElementById('gate').style.display = 'none';
+  startSession();
+});
+
+// ============ SESSION START ============
+function startSession(){
+  document.getElementById('vtEmail').textContent = viewerEmail || 'guest';
+  // update invitee opens
+  const perms = (share && share.permissions) || {};
+  if (share){
+    share.opens = (share.opens||0) + 1;
+    if (Array.isArray(share.invitees)){
+      share.invitees.forEach(i => { if (i.email === viewerEmail){ i.status='active'; i.opens=(i.opens||0)+1; i.lastSeen=Date.now(); }});
+    }
+    TellarAPI.updateShare(TELLER, {opens: share.opens, invitees: share.invitees});
+  }
+
+  // Apply permissions
+  if (!perms.agent){
+    document.getElementById('layout').classList.add('no-agent');
+  }
+  // Watermark
+  const wm = document.getElementById('slideWatermark');
+  if (perms.watermark !== false && viewerEmail){
+    const repeat = Array(6).fill(viewerEmail).join(' · ');
+    wm.textContent = repeat;
+  } else {
+    wm.style.display = 'none';
+  }
+
+  document.getElementById('deckTitle').textContent = teller.title;
+
+  renderSlideNav();
+  goToSlide(1);
+  startSlideTimer();
+
+  // agent sub
+  const kb = TellarAPI.listKB(TELLER);
+  const recs = TellarAPI.listRecordings(TELLER);
+  document.getElementById('agentSub').textContent = `trained on ${slides.length} slides · ${recs.length} recordings · ${kb.length} kb sources`;
+  document.getElementById('welcomeMsg').innerHTML = `Hi ${viewerEmail ? viewerEmail.split('@')[0] : 'there'} — I'm the agent for this <em>tellar</em>. Ask me anything about the deck, Martín's narration, or the <em>${kb.length}</em> knowledge sources he attached. I'll cite every answer.`;
+}
+
+// ============ SLIDES ============
+function renderSlideNav(){
+  const host = document.getElementById('slideNav');
+  host.innerHTML = '';
+  const prev = document.createElement('button');
+  prev.className = 'slide-arrow';
+  prev.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1L2 5l4 4"/></svg>';
+  prev.onclick = () => goToSlide(currentIdx - 1);
+  host.appendChild(prev);
+  // limit visible dots
+  const maxShown = 14;
+  const visible = slides.slice(0, maxShown);
+  visible.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'slide-nav-dot' + (s.idx === currentIdx ? ' active' : '') + (viewed.has(s.idx) ? ' viewed' : '');
+    b.textContent = s.idx;
+    b.onclick = () => goToSlide(s.idx);
+    host.appendChild(b);
+  });
+  if (slides.length > maxShown){
+    const sep = document.createElement('span'); sep.className = 'slide-nav-sep'; host.appendChild(sep);
+    const more = document.createElement('span');
+    more.style.cssText = 'padding:0 6px;font-family:var(--mono);font-size:10px;color:var(--ink-3);align-self:center';
+    more.textContent = '+' + (slides.length - maxShown);
+    host.appendChild(more);
+  }
+  const next = document.createElement('button');
+  next.className = 'slide-arrow';
+  next.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1l4 4-4 4"/></svg>';
+  next.onclick = () => goToSlide(currentIdx + 1);
+  host.appendChild(next);
+}
+
+function goToSlide(idx){
+  if (idx < 1 || idx > slides.length) return;
+  // commit dwell for previous slide
+  commitDwell();
+  currentIdx = idx;
+  viewed.add(idx);
+  const s = slides.find(x => x.idx === idx);
+  const stage = document.getElementById('slideStage');
+  stage.classList.add('swap');
+  setTimeout(() => {
+    document.getElementById('slideEyebrow').textContent = s.eyebrow || '';
+    document.getElementById('slideTitle').innerHTML = s.title || '';
+    document.getElementById('slideSub').innerHTML = s.sub || '';
+    document.getElementById('slideFootR').textContent = `${String(idx).padStart(2,'0')} / ${slides.length}`;
+    document.getElementById('slideCount').textContent = `${String(idx).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+    stage.classList.remove('swap');
+  }, 160);
+  renderSlideNav();
+  slideEnteredAt = Date.now();
+  slideProgress = 0;
+  // log event
+  TellarAPI.track({type:'slide_view', tellerId:TELLER, shareId: share?.id, sessionId, email: viewerEmail, slideIdx: idx});
+  // load recording for this slide
+  loadSlideRecording(s);
+}
+
+function commitDwell(){
+  if (!slideEnteredAt) return;
+  const dwellMs = Date.now() - slideEnteredAt;
+  TellarAPI.track({type:'slide_dwell', tellerId:TELLER, sessionId, email:viewerEmail, slideIdx: currentIdx, dwellMs});
+  slideEnteredAt = 0;
+}
+
+// ============ NARRATION / RECORDING ============
+async function loadSlideRecording(slide){
+  const perms = (share && share.permissions) || {};
+  const narrator = document.getElementById('narrator');
+  const fallback = document.getElementById('narratorFallback');
+  const live = document.getElementById('narratorLive');
+  narrator.classList.remove('playing');
+  live.style.display = 'none';
+  narratorVideo.pause();
+  narratorVideo.style.display = 'none';
+  fallback.style.display = 'flex';
+
+  if (perms.recording === false){ narrator.style.display = 'none'; return; }
+  narrator.style.display = 'block';
+
+  const recs = TellarAPI.listRecordings(TELLER);
+  const rec = recs.find(r => r.slideId === slide.id);
+  if (!rec){ slideDurMs = (slide.narrationDur || 12) * 1000; updateTimeLabels(); return; }
+
+  try{
+    const blob = await TellarAPI.getRecordingBlob(rec.id);
+    if (!blob) return;
+    narratorVideo.src = URL.createObjectURL(blob);
+    slideDurMs = rec.durationMs;
+    if (rec.mode === 'cam-mic' || rec.mode === 'screen' || rec.mode === 'screen-mic'){
+      narratorVideo.style.display = 'block';
+      fallback.style.display = 'none';
+    }
+    updateTimeLabels();
+    if (playing){ narratorVideo.play().catch(()=>{}); narrator.classList.add('playing'); live.style.display='block'; }
+  }catch(e){ console.warn('rec load failed', e); }
+}
+
+document.getElementById('narrator').addEventListener('click', () => {
+  if (narratorVideo.paused){ narratorVideo.play(); playing = true; updatePlayButton(); }
+  else { narratorVideo.pause(); playing = false; updatePlayButton(); }
+});
+
+// ============ PLAYER / TIMER ============
+function startSlideTimer(){
+  clearInterval(slideTimer);
+  slideTimer = setInterval(() => {
+    if (!playing) return;
+    slideProgress += 100;
+    const dur = slideDurMs || 12000;
+    const pct = Math.min(100, (slideProgress / dur) * 100);
+    document.getElementById('trackFill').style.width = pct + '%';
+    document.getElementById('timeCur').textContent = fmtMs(slideProgress);
+    if (slideProgress >= dur){
+      if (currentIdx < slides.length) goToSlide(currentIdx + 1);
+      else { playing = false; updatePlayButton(); }
+    }
+  }, 100);
+}
+function updateTimeLabels(){
+  document.getElementById('timeTot').textContent = fmtMs(slideDurMs);
+  document.getElementById('timeCur').textContent = '0:00';
+  document.getElementById('trackFill').style.width = '0%';
+}
+function fmtMs(ms){ const s = Math.round(ms/1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+
+document.getElementById('prevBtn').onclick = () => goToSlide(currentIdx - 1);
+document.getElementById('nextBtn').onclick = () => goToSlide(currentIdx + 1);
+document.getElementById('playBtn').onclick = () => {
+  playing = !playing;
+  updatePlayButton();
+  const narrator = document.getElementById('narrator');
+  if (playing){ narratorVideo.play().catch(()=>{}); narrator.classList.add('playing'); }
+  else { narratorVideo.pause(); narrator.classList.remove('playing'); }
+};
+function updatePlayButton(){
+  document.getElementById('playBtn').innerHTML = playing
+    ? '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="3" y="2" width="3" height="10"/><rect x="8" y="2" width="3" height="10"/></svg>'
+    : '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 2l9 5-9 5z"/></svg>';
+}
+updatePlayButton();
+
+let muted = false;
+document.getElementById('muteBtn').onclick = () => { muted = !muted; narratorVideo.muted = muted; };
+
+document.getElementById('track').onclick = e => {
+  const r = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - r.left) / r.width;
+  slideProgress = Math.round(slideDurMs * pct);
+  document.getElementById('trackFill').style.width = (pct*100) + '%';
+  document.getElementById('timeCur').textContent = fmtMs(slideProgress);
+  if (!narratorVideo.paused || narratorVideo.src){ narratorVideo.currentTime = (slideDurMs * pct) / 1000; }
+};
+
+document.addEventListener('keydown', e => {
+  if (document.activeElement.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight' || e.key === ' '){ e.preventDefault(); goToSlide(currentIdx + 1); }
+  if (e.key === 'ArrowLeft'){ goToSlide(currentIdx - 1); }
+  if (e.key === 'Escape'){ document.getElementById('layout').classList.toggle('chat-closed'); }
+});
+
+// ============ CHAT / AGENT ============
+document.getElementById('closeChat').onclick = () => document.getElementById('layout').classList.add('chat-closed');
+document.getElementById('openChat').onclick = () => document.getElementById('layout').classList.remove('chat-closed');
+
+const chatInput = document.getElementById('chatInput');
+document.getElementById('chatSend').onclick = sendChat;
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }});
+
+function appendMsg(role, html){
+  const host = document.getElementById('chatBody');
+  const el = document.createElement('div');
+  el.className = 'msg' + (role === 'user' ? ' user' : '');
+  el.innerHTML = `
+    <div class="msg-avatar ${role === 'user' ? 'ma-user' : 'ma-agent'}">${role === 'user' ? ((viewerEmail||'?').charAt(0).toUpperCase()) : 't'}</div>
+    <div><div class="msg-bubble">${html}</div></div>`;
+  host.appendChild(el);
+  host.scrollTop = host.scrollHeight;
+  return el;
+}
+
+async function sendChat(){
+  const q = chatInput.value.trim(); if (!q) return;
+  chatInput.value = '';
+  appendMsg('user', q);
+  // typing
+  const typing = appendMsg('agent', '<span class="typing"><span></span><span></span><span></span></span>');
+  try{
+    const out = await TellarAPI.askAgent({tellerId: TELLER, question: q});
+    typing.querySelector('.msg-bubble').innerHTML = TellarAPI.citeToHtml(out);
+    // bind citation clicks
+    typing.querySelectorAll('.cite').forEach(c => {
+      c.style.cursor = 'pointer';
+      c.onclick = () => {
+        const ref = c.dataset.ref;
+        if (c.dataset.type === 'slide'){ goToSlide(parseInt(ref, 10)); }
+        if (c.dataset.type === 'audio'){ goToSlide(parseInt(ref, 10)); }
+      };
+    });
+  }catch(err){
+    typing.querySelector('.msg-bubble').innerHTML = `Sorry — the agent couldn't reach the model. (${err.message})`;
+  }
+}
+
+// ============ BOOT ============
+function boot(){
+  // pre-fill saved viewer email if any
+  const saved = localStorage.getItem('tellar:viewer-email');
+  if (saved) document.getElementById('gateEmail').value = saved;
+
+  share = TellarAPI.getShare(TELLER);
+  slides = TellarAPI.listSlides(TELLER);
+  if (!slides.length){
+    document.body.innerHTML = '<div style="padding:60px;color:var(--ink-2);font-family:var(--serif);font-size:18px">This teller has no slides yet. Open the <a href="editor.html" style="color:var(--accent)">editor</a> to add some.</div>';
+    return;
+  }
+
+  const auth = TellarAPI.authorizeViewer(TELLER, saved);
+  if (!auth.ok){
+    showGate(auth.reason, share);
+    return;
+  }
+  viewerEmail = saved;
+  startSession();
+}
+boot();
+
+window.addEventListener('beforeunload', commitDwell);
+</script>
+</body>
+</html>

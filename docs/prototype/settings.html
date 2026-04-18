@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tellar — Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page{max-width:1200px;margin:0 auto;padding:40px 32px 120px;position:relative;z-index:3}
+  .top-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0 28px;border-bottom:1px solid var(--line);margin-bottom:36px}
+  .top-brand{font-family:var(--serif);font-style:italic;font-weight:500;font-size:22px;letter-spacing:-.02em}
+  .top-brand::first-letter{color:var(--accent)}
+  .top-crumbs{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.15em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+  .top-crumbs a{color:var(--ink-2)}
+  .top-crumbs span{color:var(--accent)}
+  .top-user{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-2)}
+  .top-user .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#f4b942,#c88a2a);color:#1a1a1a;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:13px}
+
+  .page-head{margin-bottom:28px}
+  .page-head .kicker{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.25em;text-transform:uppercase;margin-bottom:14px}
+  .page-head h1{font-family:var(--serif);font-size:64px;font-weight:400;line-height:1;letter-spacing:-.03em}
+  .page-head h1 em{font-style:italic;color:var(--accent)}
+  .page-head p{font-family:var(--serif);font-style:italic;color:var(--ink-2);font-size:17px;margin-top:10px;max-width:60%}
+
+  .layout{display:grid;grid-template-columns:220px 1fr;gap:32px;margin-top:30px}
+  .side-nav{border-top:1px solid var(--line);position:sticky;top:20px;align-self:start}
+  .side-nav a{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line);font-size:14px;color:var(--ink-2);font-family:var(--serif);letter-spacing:-.005em;transition:all .2s}
+  .side-nav a:hover{color:var(--ink);padding-left:8px}
+  .side-nav a.active{color:var(--accent);font-style:italic;padding-left:8px}
+  .side-nav a .cnt{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em}
+  .side-nav a.active .cnt{color:var(--accent)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);padding:32px;position:relative;min-height:400px}
+  .panel-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:26px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+  .panel-head h2{font-family:var(--serif);font-size:30px;font-weight:400;letter-spacing:-.02em}
+  .panel-head h2 em{font-style:italic;color:var(--accent)}
+  .panel-head p{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-2);margin-top:6px;max-width:500px}
+  .panel-head-cta{display:flex;gap:10px;flex-shrink:0}
+
+  .section{display:none}
+  .section.active{display:block;animation:fadeIn .3s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* Two-col detail rows */
+  .row{display:grid;grid-template-columns:200px 1fr auto;gap:24px;align-items:center;padding:18px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row .k{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.15em;text-transform:uppercase}
+  .row .v{font-size:14px;color:var(--ink);font-family:var(--serif)}
+  .row .v em{font-style:italic;color:var(--accent)}
+  .row .v .muted{color:var(--ink-3);font-family:var(--mono);font-size:11px;letter-spacing:.1em;margin-left:8px}
+  .row input[type=text],.row input[type=email]{background:var(--bg);border:1px solid var(--line-2);color:var(--ink);padding:10px 12px;font-family:var(--serif);font-size:14px;width:100%}
+  .row input:focus{outline:none;border-color:var(--accent)}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding-top:6px}
+
+  /* Usage bars */
+  .metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:30px}
+  .metric-card{background:var(--bg-2);border:1px solid var(--line);padding:22px}
+  .metric-card .mk{font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:14px;display:flex;justify-content:space-between}
+  .metric-card .mk .pct{color:var(--ink);font-weight:600}
+  .metric-card .mv{font-family:var(--serif);font-size:32px;letter-spacing:-.02em;margin-bottom:4px}
+  .metric-card .mv em{font-style:italic;color:var(--accent);font-size:20px;margin-left:4px}
+  .metric-card .msub{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--ink-3);margin-bottom:14px}
+  .bar{height:4px;background:var(--line);position:relative;overflow:hidden}
+  .bar-fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .5s}
+  .bar-fill.warn{background:var(--warn)}
+  .bar-fill.bad{background:var(--bad)}
+
+  /* Tables */
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.15em;text-transform:uppercase;font-weight:500}
+  .tbl td{padding:16px 14px;border-bottom:1px solid var(--line);font-family:var(--serif);color:var(--ink)}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl tr:hover td{background:var(--panel-2)}
+  .tbl .mono{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--ink-2)}
+  .role-chip{display:inline-flex;padding:3px 9px;border:1px solid var(--line-2);font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);border-radius:10px}
+  .role-chip.owner{border-color:var(--accent);color:var(--accent)}
+  .role-chip.editor{border-color:var(--accent-2);color:var(--accent-2)}
+  .role-chip.viewer{border-color:var(--line-2);color:var(--ink-2)}
+  .status-chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+  .status-chip::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ink-3)}
+  .status-chip.active::before{background:var(--good)}
+  .status-chip.pending::before{background:var(--warn)}
+
+  .ws-list{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+  .ws-item{display:flex;align-items:center;gap:16px;padding:18px;background:var(--bg-2);border:1px solid var(--line);cursor:pointer;transition:all .2s}
+  .ws-item:hover{border-color:var(--line-2)}
+  .ws-item.active{border-color:var(--accent);background:rgba(244,185,66,.04)}
+  .ws-avatar{width:44px;height:44px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#1a1a1a;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;font-size:18px;flex-shrink:0}
+  .ws-info{flex:1;min-width:0}
+  .ws-name{font-family:var(--serif);font-size:17px;font-weight:500}
+  .ws-meta{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;margin-top:3px;text-transform:uppercase}
+  .ws-current{font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;padding:4px 8px;border:1px solid var(--accent);border-radius:10px}
+
+  .plan-card{display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;padding:22px;background:linear-gradient(135deg,rgba(244,185,66,.08),rgba(159,143,211,.04));border:1px solid var(--accent);margin-bottom:26px}
+  .plan-price{font-family:var(--serif);font-size:48px;line-height:1;letter-spacing:-.03em}
+  .plan-price em{font-style:italic;color:var(--accent);font-size:28px;margin-right:2px}
+  .plan-period{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.15em;text-transform:uppercase;margin-top:4px}
+  .plan-info h3{font-family:var(--serif);font-size:22px;margin-bottom:4px;font-weight:500}
+  .plan-info h3 em{font-style:italic;color:var(--accent)}
+  .plan-info p{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-2);max-width:380px;line-height:1.5}
+
+  .card-viz{background:var(--bg-2);border:1px solid var(--line);padding:20px;display:flex;align-items:center;gap:16px;max-width:360px}
+  .card-brand{width:44px;height:30px;background:#000;border-radius:3px;position:relative;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:600;color:#fff;letter-spacing:.1em;text-transform:uppercase}
+  .card-brand.visa{background:linear-gradient(135deg,#1a1f71,#2a3bab)}
+  .card-brand.mc{background:linear-gradient(135deg,#eb001b,#f79e1b)}
+  .card-num{font-family:var(--mono);font-size:13px;color:var(--ink);letter-spacing:.1em}
+  .card-exp{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.15em;margin-top:3px;text-transform:uppercase}
+
+  .toggle{display:inline-flex;align-items:center;gap:10px}
+  .toggle input{display:none}
+  .toggle-pill{width:36px;height:20px;background:var(--line-2);border-radius:10px;position:relative;transition:background .2s;cursor:pointer}
+  .toggle-pill::after{content:'';position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--ink);transition:transform .2s}
+  .toggle input:checked + .toggle-pill{background:var(--accent)}
+  .toggle input:checked + .toggle-pill::after{transform:translateX(16px);background:#0c0d0f}
+
+  .empty{padding:60px;text-align:center;color:var(--ink-3);font-family:var(--serif);font-style:italic;font-size:15px}
+
+  .pill-tabs{display:inline-flex;background:var(--bg-2);border:1px solid var(--line);padding:3px;margin-bottom:20px}
+  .pill-tabs button{background:transparent;border:none;padding:7px 14px;color:var(--ink-2);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+  .pill-tabs button.active{background:var(--accent);color:#0c0d0f}
+
+  .danger-zone{margin-top:30px;padding:22px;border:1px dashed var(--bad);background:rgba(230,108,94,.04)}
+  .danger-zone h3{font-family:var(--serif);color:var(--bad);font-size:16px;margin-bottom:8px}
+  .danger-zone p{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--ink-2);margin-bottom:14px}
+  .btn-danger{border:1px solid var(--bad);color:var(--bad);background:transparent;padding:9px 14px;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+  .btn-danger:hover{background:var(--bad);color:#fff}
+
+  .invite-bar{display:flex;gap:8px;margin-bottom:20px}
+  .invite-bar input{flex:1;background:var(--bg);border:1px solid var(--line-2);color:var(--ink);padding:11px 14px;font-family:var(--serif);font-size:14px}
+  .invite-bar select{background:var(--bg);border:1px solid var(--line-2);color:var(--ink);padding:11px 14px;font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer}
+
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line-2);padding:12px 20px;font-family:var(--serif);font-size:13px;color:var(--ink);z-index:200;opacity:0;transition:opacity .2s,transform .3s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-8px)}
+  .toast.ok{border-left:2px solid var(--good)}
+  .toast.err{border-left:2px solid var(--bad)}
+
+  .icon{width:36px;height:36px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;color:var(--ink-2);flex-shrink:0}
+
+  /* Range pills + chart */
+  .range-pills{display:inline-flex;background:var(--bg-2);border:1px solid var(--line);padding:3px;align-items:center;gap:0;flex-wrap:wrap}
+  .range-pills button{background:transparent;border:none;padding:7px 11px;color:var(--ink-2);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+  .range-pills button:hover{color:var(--ink)}
+  .range-pills button.active{background:var(--accent);color:#0c0d0f}
+  .xtd-wrap{position:relative;display:inline-flex;border-left:1px solid var(--line);margin-left:3px;padding-left:3px}
+  .xtd-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:160px;background:var(--panel);border:1px solid var(--line-2);box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:80;display:none}
+  .xtd-menu.open{display:block}
+  .xtd-menu button{display:block;width:100%;text-align:left;background:none;border:none;padding:10px 14px;color:var(--ink-2);font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border-bottom:1px solid var(--line)}
+  .xtd-menu button:last-child{border-bottom:none}
+  .xtd-menu button:hover{background:var(--panel-2);color:var(--accent)}
+  .chart-tip{position:absolute;background:var(--panel);border:1px solid var(--line-2);padding:10px 12px;font-family:var(--mono);font-size:10px;color:var(--ink);letter-spacing:.05em;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:160px}
+  .chart-tip.show{opacity:1}
+  .chart-tip .tt-date{font-family:var(--serif);font-style:italic;color:var(--ink-2);margin-bottom:6px;font-size:11px;letter-spacing:0;text-transform:none}
+  .chart-tip .tt-row{display:flex;justify-content:space-between;gap:14px;padding:2px 0}
+  .chart-tip .tt-row b{color:var(--ink)}
+  #usageChart .bar-rect{cursor:pointer;transition:opacity .15s}
+  #usageChart .bar-rect:hover{opacity:.7}
+  #usageChart .hover-line{stroke:var(--accent);stroke-width:1;stroke-dasharray:2 3;opacity:0;pointer-events:none}
+  #usageChart .hover-line.show{opacity:.5}
+  .csv-toast{font-family:var(--mono)}
+
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr}
+    .side-nav{position:static}
+    .metric-grid{grid-template-columns:1fr}
+    .split{grid-template-columns:1fr}
+    .plan-card{grid-template-columns:1fr;gap:14px}
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="top-bar">
+    <div style="display:flex;align-items:center;gap:24px">
+      <a href="home.html" class="top-brand">tellar</a>
+      <div class="top-crumbs"><a href="dashboard.html">studio</a> / <span>settings</span></div>
+    </div>
+    <div class="top-user">
+      <span id="topUserEmail">—</span>
+      <div class="avatar" id="topAvatar">M</div>
+    </div>
+  </div>
+
+  <div class="page-head">
+    <div class="kicker">settings · workspace · account</div>
+    <h1>Make it <em>yours.</em></h1>
+    <p>Usage, seats, invoices, members, security. Everything you need to run your tellars — nothing you don't.</p>
+  </div>
+
+  <div class="layout">
+
+    <nav class="side-nav" id="sideNav">
+      <a data-tab="profile" class="active">Profile <span class="cnt">you</span></a>
+      <a data-tab="workspaces">Workspaces <span class="cnt" id="wsCnt">—</span></a>
+      <a data-tab="members">Members <span class="cnt" id="memCnt">—</span></a>
+      <a data-tab="usage">Usage this month <span class="cnt" id="usageCnt">—</span></a>
+      <a data-tab="billing">Billing &amp; plan <span class="cnt" id="planCnt">—</span></a>
+      <a data-tab="security">Security <span class="cnt">shares</span></a>
+      <a data-tab="integrations">Integrations <span class="cnt">4</span></a>
+    </nav>
+
+    <div>
+      <!-- PROFILE -->
+      <section class="panel section active" data-section="profile">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-head">
+          <div>
+            <h2>Your <em>profile.</em></h2>
+            <p>This is the you that shows up on decks, in the agent's name, and on the watermark at the bottom of every shared viewer.</p>
+          </div>
+          <div class="panel-head-cta">
+            <button class="btn btn-primary" id="saveProfile">Save changes</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="k">Display name</div>
+          <div class="v"><input type="text" id="fName" value=""/></div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div class="k">Email</div>
+          <div class="v"><input type="email" id="fEmail" value="" disabled style="opacity:.6;cursor:not-allowed"/></div>
+          <div class="status-chip active">verified</div>
+        </div>
+        <div class="row">
+          <div class="k">Signed in via</div>
+          <div class="v" id="fProvider">email · password</div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div class="k">Member since</div>
+          <div class="v" id="fSince">—</div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div class="k">Narration voice</div>
+          <div class="v">Your avatar &amp; voice print — trained on <em>47 min</em> of recordings. <span class="muted">used by Agent when you're not live</span></div>
+          <div><button class="btn btn-ghost">Retrain</button></div>
+        </div>
+
+        <div class="danger-zone">
+          <h3>Delete account</h3>
+          <p>Cancel your subscription, export your tellars, and permanently remove your workspace. This cannot be undone.</p>
+          <button class="btn-danger" onclick="confirmDelete()">Export &amp; delete</button>
+        </div>
+      </section>
+
+      <!-- WORKSPACES -->
+      <section class="panel section" data-section="workspaces">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-head">
+          <div>
+            <h2>Your <em>workspaces.</em></h2>
+            <p>A workspace is a shared library of tellars, a seat pool, and a billing account. Switch between them any time.</p>
+          </div>
+          <div class="panel-head-cta">
+            <button class="btn btn-primary" id="newWs">+ New workspace</button>
+          </div>
+        </div>
+
+        <div class="ws-list" id="wsList"></div>
+
+        <div class="row" style="margin-top:24px">
+          <div class="k">Current workspace name</div>
+          <div class="v"><input type="text" id="wsName"/></div>
+          <div><button class="btn btn-ghost" id="renameWs">Rename</button></div>
+        </div>
+        <div class="row">
+          <div class="k">URL slug</div>
+          <div class="v" id="wsSlug">tellar.studio/—</div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div class="k">Default theme</div>
+          <div class="v">Editorial cream <span class="muted">applied to new tellars</span></div>
+          <div><button class="btn btn-ghost">Change</button></div>
+        </div>
+      </section>
+
+      <!-- MEMBERS -->
+      <section class="panel section" data-section="members">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-head">
+          <div>
+            <h2>People in <em>this workspace.</em></h2>
+            <p>Owners can do anything. Editors record and publish. Viewers see the studio but can't edit or share.</p>
+          </div>
+        </div>
+
+        <div class="invite-bar">
+          <input type="email" id="inviteEmail" placeholder="teammate@yourco.com"/>
+          <select id="inviteRole">
+            <option value="editor">Editor</option>
+            <option value="viewer">Viewer</option>
+          </select>
+          <button class="btn btn-primary" id="inviteBtn">Send invite</button>
+        </div>
+
+        <table class="tbl" id="memTable">
+          <thead>
+            <tr><th>Member</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr>
+          </thead>
+          <tbody id="memBody"></tbody>
+        </table>
+      </section>
+
+      <!-- USAGE -->
+      <section class="panel section" data-section="usage">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-head">
+          <div>
+            <h2 id="usageHead">This <em>month</em> at a glance.</h2>
+            <p id="usageMonth">—</p>
+          </div>
+          <div class="panel-head-cta">
+            <button class="btn btn-ghost" id="exportCsvBtn">Export CSV</button>
+          </div>
+        </div>
+
+        <div class="metric-grid" id="usageGrid"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+          <h3 style="font-family:var(--serif);font-size:18px;font-weight:500">Daily activity</h3>
+          <div id="rangePills" class="range-pills">
+            <button data-r="7" data-label="7D">7D</button>
+            <button data-r="14" data-label="14D">14D</button>
+            <button data-r="30" data-label="1M" class="active">1M</button>
+            <button data-r="90" data-label="3M">3M</button>
+            <button data-r="180" data-label="6M">6M</button>
+            <button data-r="365" data-label="1Y">1Y</button>
+            <span class="xtd-wrap">
+              <button id="xtdBtn" data-label="MTD">XTD <span style="font-size:9px;color:var(--ink-3);margin-left:4px">▾</span></button>
+              <div class="xtd-menu" id="xtdMenu">
+                <button data-r="wtd" data-label="WTD">Week-to-date</button>
+                <button data-r="mtd" data-label="MTD">Month-to-date</button>
+                <button data-r="ytd" data-label="YTD">Year-to-date</button>
+              </div>
+            </span>
+          </div>
+        </div>
+        <div style="background:var(--bg-2);border:1px solid var(--line);padding:22px;position:relative">
+          <div id="chartTooltip" class="chart-tip"></div>
+          <svg id="usageChart" viewBox="0 0 800 200" preserveAspectRatio="none" style="width:100%;height:200px;display:block"></svg>
+          <div style="display:flex;justify-content:space-between;margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:.15em;text-transform:uppercase" id="chartAxis">
+            <span>—</span><span>—</span><span>today</span>
+          </div>
+          <div style="display:flex;gap:18px;margin-top:14px;font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase">
+            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--accent);border-radius:50%"></span>Agent queries <b id="sumQueries" style="color:var(--ink);margin-left:4px">0</b></span>
+            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--accent-2);border-radius:50%"></span>Recording min <b id="sumRec" style="color:var(--ink);margin-left:4px">0</b></span>
+            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#7fa8d4;border-radius:50%"></span>Sessions <b id="sumSessions" style="color:var(--ink);margin-left:4px">0</b></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- BILLING -->
+      <section class="panel section" data-section="billing">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-head">
+          <div>
+            <h2>Billing &amp; <em>plan.</em></h2>
+            <p>Your subscription, payment method, and every invoice — all in one place.</p>
+          </div>
+        </div>
+
+        <div class="plan-card" id="planCard">
+          <div>
+            <div class="plan-price">$<span id="planPrice">49</span><em id="planInt">/mo</em></div>
+            <div class="plan-period" id="planMeta">—</div>
+          </div>
+          <div class="plan-info">
+            <h3>You're on <em id="planName">Pro</em></h3>
+            <p id="planDesc">Unlimited tellars · 300 recording minutes · 1,000 agent queries · 5 seats · priority support.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary">Upgrade to Scale</button>
+            <button class="btn btn-ghost">Change plan</button>
+          </div>
+        </div>
+
+        <div class="split">
+          <div>
+            <h3 style="font-family:var(--serif);font-size:18px;font-weight:500;margin-bottom:12px">Payment method</h3>
+            <div class="card-viz" id="cardViz">
+              <div class="card-brand visa" id="cardBrand">VISA</div>
+              <div>
+                <div class="card-num" id="cardNum">•••• •••• •••• 4242</div>
+                <div class="card-exp" id="cardExp">expires 09/28</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost" style="margin-top:12px">Update card</button>
+          </div>
+          <div>
+            <h3 style="font-family:var(--serif);font-size:18px;font-weight:500;margin-bottom:12px">Billing contact</h3>
+            <div class="row" style="padding:10px 0">
+              <div class="k">Company</div><div class="v">Tellar Studio SAS</div><div></div>
+            </div>
+            <div class="row" style="padding:10px 0">
+              <div class="k">Tax ID</div><div class="v">30-71234567-5</div><div></div>
+            </div>
+            <div class="row" style="padding:10px 0">
+              <div class="k">Next invoice</div><div class="v" id="nextInvoice">—</div><div></div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-family:var(--serif);font-size:18px;font-weight:500;margin:28px 0 14px">Invoice history</h3>
+        <table class="tbl">
+          <thead>
+            <tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="invoiceBody"></tbody>
+        </table>
+      </section>
+
+      <!-- SECURITY -->
+      <section class="panel section" data-section="security">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-head">
+          <div>
+            <h2>Security &amp; <em>share defaults.</em></h2>
+            <p>Set the guardrails once. Every new share inherits these — you can override per tellar.</p>
+          </div>
+          <div class="panel-head-cta">
+            <button class="btn btn-primary" id="saveSec">Save defaults</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="k">Default access</div>
+          <div class="v">
+            <select id="defAccess" style="background:var(--bg);border:1px solid var(--line-2);color:var(--ink);padding:10px 14px;font-family:var(--serif);font-size:14px">
+              <option value="public">Anyone with the link</option>
+              <option value="email-gated" selected>Email-gated (work emails only)</option>
+              <option value="invite-only">Invite only</option>
+              <option value="passphrase">Passphrase required</option>
+            </select>
+          </div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div class="k">Watermark viewer email</div>
+          <div class="v">Stamps every slide with the viewer's address — deters screenshots.</div>
+          <div><label class="toggle"><input type="checkbox" id="defWatermark" checked/><span class="toggle-pill"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="k">Block screen recording</div>
+          <div class="v">DRM-lite: blacks out the canvas when a native recorder is detected.</div>
+          <div><label class="toggle"><input type="checkbox" id="defBlock" checked/><span class="toggle-pill"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="k">Allow agent questions</div>
+          <div class="v">Viewers can ask the Ask-the-deck agent during and after the playback.</div>
+          <div><label class="toggle"><input type="checkbox" id="defAgent" checked/><span class="toggle-pill"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="k">Allow download</div>
+          <div class="v">Adds a PDF export button to every shared viewer.</div>
+          <div><label class="toggle"><input type="checkbox" id="defDownload"/><span class="toggle-pill"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="k">Require one-time code</div>
+          <div class="v">Emails a 6-digit code to the viewer before they can open.</div>
+          <div><label class="toggle"><input type="checkbox" id="defOTC" checked/><span class="toggle-pill"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="k">Auto-expire links after</div>
+          <div class="v"><input type="text" id="defExpire" value="14 days" style="max-width:180px"/></div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div class="k">Require NDA before viewing</div>
+          <div class="v">Click-through NDA shown on the gate.</div>
+          <div><label class="toggle"><input type="checkbox" id="defNda"/><span class="toggle-pill"></span></label></div>
+        </div>
+
+        <h3 style="font-family:var(--serif);font-size:18px;font-weight:500;margin:28px 0 14px">Active sessions</h3>
+        <table class="tbl">
+          <thead><tr><th>Device</th><th>Location</th><th>Last active</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>MacBook Pro · Arc <span class="status-chip active" style="margin-left:8px">this device</span></td><td class="mono">Buenos Aires, AR</td><td class="mono">now</td><td></td></tr>
+            <tr><td>iPhone 15 · Safari</td><td class="mono">Buenos Aires, AR</td><td class="mono">2h ago</td><td><button class="btn btn-ghost">Revoke</button></td></tr>
+            <tr><td>Chrome · Windows</td><td class="mono">Lisbon, PT</td><td class="mono">4d ago</td><td><button class="btn btn-ghost">Revoke</button></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- INTEGRATIONS -->
+      <section class="panel section" data-section="integrations">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-head">
+          <div>
+            <h2>Connected <em>tools.</em></h2>
+            <p>Tellar talks to the tools you already use. Slack for notifications. HubSpot and Salesforce for auto-logged touches. Segment for event piping.</p>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div style="padding:20px;background:var(--bg-2);border:1px solid var(--line);display:flex;gap:14px;align-items:center">
+            <div class="icon" style="color:#4a154b;font-weight:600">#</div>
+            <div style="flex:1">
+              <div style="font-family:var(--serif);font-size:15px;font-weight:500">Slack</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;margin-top:2px">posts to #deals-pipeline</div>
+            </div>
+            <span class="status-chip active">connected</span>
+          </div>
+          <div style="padding:20px;background:var(--bg-2);border:1px solid var(--line);display:flex;gap:14px;align-items:center">
+            <div class="icon" style="color:#ff7a59;font-weight:600">H</div>
+            <div style="flex:1">
+              <div style="font-family:var(--serif);font-size:15px;font-weight:500">HubSpot</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;margin-top:2px">auto-logs deck opens as activity</div>
+            </div>
+            <span class="status-chip active">connected</span>
+          </div>
+          <div style="padding:20px;background:var(--bg-2);border:1px solid var(--line);display:flex;gap:14px;align-items:center">
+            <div class="icon">SF</div>
+            <div style="flex:1">
+              <div style="font-family:var(--serif);font-size:15px;font-weight:500">Salesforce</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;margin-top:2px">opportunity-level tellar attachment</div>
+            </div>
+            <button class="btn btn-ghost">Connect</button>
+          </div>
+          <div style="padding:20px;background:var(--bg-2);border:1px solid var(--line);display:flex;gap:14px;align-items:center">
+            <div class="icon">Sg</div>
+            <div style="flex:1">
+              <div style="font-family:var(--serif);font-size:15px;font-weight:500">Segment</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;margin-top:2px">pipe every tellar event as a track call</div>
+            </div>
+            <button class="btn btn-ghost">Connect</button>
+          </div>
+        </div>
+
+        <div style="margin-top:28px;padding:22px;background:var(--bg-2);border:1px solid var(--line)">
+          <h3 style="font-family:var(--serif);font-size:18px;font-weight:500;margin-bottom:8px">API &amp; webhooks</h3>
+          <p style="font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-2);margin-bottom:16px">Programmatic access for the Scale plan and up. Create a tellar, attach a KB source, or fetch analytics from your own stack.</p>
+          <div class="row" style="padding:8px 0">
+            <div class="k">Personal API key</div>
+            <div class="v mono" style="font-family:var(--mono);font-size:12px">tlr_live_•••••••••••••••••• <span class="muted">rotate monthly</span></div>
+            <div><button class="btn btn-ghost">Reveal · Rotate</button></div>
+          </div>
+          <div class="row" style="padding:8px 0">
+            <div class="k">Webhook endpoint</div>
+            <div class="v"><input type="text" placeholder="https://your-app.com/tellar/hooks" style="font-family:var(--mono);font-size:12px"/></div>
+            <div><button class="btn btn-ghost">Test</button></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="nav-dock">
+  <span class="dock-brand">tellar demo</span>
+  <a href="home.html">home</a>
+  <a href="auth.html">auth</a>
+  <a href="dashboard.html">dashboard</a>
+  <a href="editor.html">editor</a>
+  <a href="share.html">share</a>
+  <a href="viewer.html">viewer</a>
+  <a href="settings.html" class="active">settings</a>
+<a href="handoff.html">handoff</a>
+</div>
+
+<script src="api.js"></script>
+<script>
+function toast(msg, kind='ok'){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + kind;
+  clearTimeout(window.__tt); window.__tt = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+function fmtDate(ts){
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+}
+function fmtRel(ts){
+  if (!ts) return '—';
+  const d = Date.now() - ts;
+  if (d < 60000) return 'just now';
+  if (d < 3600000) return Math.floor(d/60000) + 'm ago';
+  if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
+  return Math.floor(d/86400000) + 'd ago';
+}
+
+// ============ STATE ============
+let session = TellarAPI.session();
+if (!session){
+  window.location.href = 'auth.html'; // not logged — bounce
+}
+let currentWs = null;
+const TELLER = 'tlr_q2pitch';
+
+// ============ BOOT ============
+function boot(){
+  document.getElementById('topUserEmail').textContent = session.email;
+  document.getElementById('topAvatar').textContent = session.initials || session.name?.[0] || 'T';
+
+  // profile
+  const users = JSON.parse(localStorage.getItem('tellar:users')||'[]');
+  const me = users.find(u => u.id === session.userId) || {};
+  document.getElementById('fName').value = me.name || session.name;
+  document.getElementById('fEmail').value = me.email || session.email;
+  document.getElementById('fProvider').textContent = me.provider === 'email' ? 'email · password' : me.provider + ' (OAuth)';
+  document.getElementById('fSince').textContent = fmtDate(me.createdAt);
+
+  // workspaces
+  const wss = TellarAPI.listWorkspaces();
+  currentWs = wss.find(w => w.id === session.workspaceId) || wss[0];
+  document.getElementById('wsCnt').textContent = wss.length + (wss.length===1?' ws':' wss');
+  renderWorkspaces(wss);
+
+  // members
+  const members = TellarAPI.listMembers(currentWs.id);
+  document.getElementById('memCnt').textContent = members.length + ' people';
+  renderMembers(members);
+
+  // usage
+  const usage = JSON.parse(localStorage.getItem('tellar:usage')||'{}');
+  const mo = new Date(usage.month + '-01').toLocaleDateString('en-US', {month:'long', year:'numeric'});
+  document.getElementById('usageMonth').textContent = `Reset on the 1st of next month. Snapshot for ${mo}.`;
+  document.getElementById('usageCnt').textContent = usage.agentQueriesLimit ? Math.round((usage.agentQueries/usage.agentQueriesLimit)*100) + '%' : '—';
+  renderUsage(usage);
+  renderUsageChart();
+
+  // billing
+  const billing = JSON.parse(localStorage.getItem('tellar:billing')||'{}');
+  document.getElementById('planCnt').textContent = (billing.plan || 'free').toUpperCase();
+  renderBilling(billing);
+}
+
+// ============ TABS ============
+document.querySelectorAll('.side-nav a').forEach(a => {
+  a.onclick = e => {
+    e.preventDefault();
+    document.querySelectorAll('.side-nav a').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelector('[data-section="' + a.dataset.tab + '"]').classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+    history.replaceState(null, '', '#' + a.dataset.tab);
+  };
+});
+const hash = window.location.hash.replace('#','');
+if (hash) document.querySelector(`.side-nav a[data-tab="${hash}"]`)?.click();
+
+// ============ PROFILE ============
+document.getElementById('saveProfile').onclick = () => {
+  const name = document.getElementById('fName').value.trim();
+  if (!name){ toast('Name cannot be empty', 'err'); return; }
+  const users = JSON.parse(localStorage.getItem('tellar:users')||'[]');
+  users.forEach(u => { if (u.id === session.userId){ u.name = name; u.initials = name.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase(); } });
+  localStorage.setItem('tellar:users', JSON.stringify(users));
+  session.name = name; session.initials = name.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+  localStorage.setItem('tellar:session', JSON.stringify(session));
+  document.getElementById('topAvatar').textContent = session.initials;
+  toast('Profile saved');
+};
+
+function confirmDelete(){
+  if (!confirm('This will permanently delete your workspace and all tellars. Continue?')) return;
+  if (!confirm('Really sure? This cannot be undone.')) return;
+  localStorage.clear(); window.location.href = 'auth.html';
+}
+
+// ============ WORKSPACES ============
+function renderWorkspaces(wss){
+  const host = document.getElementById('wsList');
+  host.innerHTML = '';
+  wss.forEach(w => {
+    const el = document.createElement('div');
+    el.className = 'ws-item' + (w.id === currentWs.id ? ' active' : '');
+    const ini = w.name.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+    el.innerHTML = `
+      <div class="ws-avatar">${ini}</div>
+      <div class="ws-info">
+        <div class="ws-name">${w.name}</div>
+        <div class="ws-meta">${w.plan} plan · ${w.seatsUsed}/${w.seats} seats · ${w.slug}</div>
+      </div>
+      ${w.id === currentWs.id ? '<span class="ws-current">current</span>' : '<button class="btn btn-ghost" data-switch="' + w.id + '">Switch</button>'}`;
+    host.appendChild(el);
+  });
+  host.querySelectorAll('[data-switch]').forEach(b => b.onclick = () => {
+    TellarAPI.switchWorkspace(b.dataset.switch);
+    toast('Workspace switched');
+    setTimeout(()=>window.location.reload(), 700);
+  });
+  document.getElementById('wsName').value = currentWs.name;
+  document.getElementById('wsSlug').textContent = 'tellar.studio/' + currentWs.slug;
+}
+document.getElementById('renameWs').onclick = () => {
+  const name = document.getElementById('wsName').value.trim();
+  if (!name) return;
+  const wss = JSON.parse(localStorage.getItem('tellar:workspaces')||'[]');
+  wss.forEach(w => { if (w.id === currentWs.id) w.name = name; });
+  localStorage.setItem('tellar:workspaces', JSON.stringify(wss));
+  currentWs.name = name;
+  toast('Workspace renamed');
+  renderWorkspaces(wss);
+};
+document.getElementById('newWs').onclick = () => {
+  const name = prompt('Workspace name?');
+  if (!name) return;
+  const wss = JSON.parse(localStorage.getItem('tellar:workspaces')||'[]');
+  const nw = {id:'ws_'+Math.random().toString(36).slice(2,9), ownerId:session.userId, name, slug:name.toLowerCase().replace(/\s+/g,'-'), plan:'free', seats:1, seatsUsed:1, createdAt:Date.now()};
+  wss.push(nw);
+  localStorage.setItem('tellar:workspaces', JSON.stringify(wss));
+  toast('Workspace created');
+  renderWorkspaces(wss);
+};
+
+// ============ MEMBERS ============
+function renderMembers(members){
+  const body = document.getElementById('memBody');
+  body.innerHTML = '';
+  members.forEach(m => {
+    const tr = document.createElement('tr');
+    const ini = (m.name || m.email || '?').split(/[ .@]/).map(s=>s[0]).filter(Boolean).join('').slice(0,2).toUpperCase();
+    tr.innerHTML = `
+      <td style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;background:var(--panel-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:12px">${ini}</div>${m.name || m.email.split('@')[0]}</td>
+      <td class="mono">${m.email || session.email}</td>
+      <td><span class="role-chip ${m.role}">${m.role}</span></td>
+      <td><span class="status-chip ${m.status || 'active'}">${m.status || 'active'}</span></td>
+      <td class="mono">${fmtRel(m.joinedAt)}</td>
+      <td>${m.role !== 'owner' ? '<button class="btn btn-ghost" data-rm="'+m.id+'">Remove</button>' : ''}</td>`;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
+    if (!confirm('Remove this member?')) return;
+    TellarAPI.removeMember(b.dataset.rm);
+    renderMembers(TellarAPI.listMembers(currentWs.id));
+    toast('Member removed');
+  });
+}
+document.getElementById('inviteBtn').onclick = () => {
+  const email = document.getElementById('inviteEmail').value.trim();
+  const role = document.getElementById('inviteRole').value;
+  if (!email || !email.includes('@')){ toast('Enter a valid email', 'err'); return; }
+  TellarAPI.inviteMember(currentWs.id, email, role);
+  document.getElementById('inviteEmail').value = '';
+  renderMembers(TellarAPI.listMembers(currentWs.id));
+  toast('Invite sent · check inbox');
+};
+
+// ============ USAGE ============
+function renderUsage(u){
+  const grid = document.getElementById('usageGrid');
+  const items = [
+    {k:'Agent queries', v:u.agentQueries||0, lim:u.agentQueriesLimit||0, sub:'answers generated · included in plan'},
+    {k:'Recording minutes', v:u.recordingMinutes||0, lim:u.recordingMinutesLimit||0, sub:'narration captured across all tellars'},
+    {k:'Storage', v:u.storageMB||0, lim:u.storageMBLimit||0, sub:'MB across tellars, recordings, KB'},
+  ];
+  grid.innerHTML = items.map(it => {
+    const pct = Math.min(100, Math.round((it.v/Math.max(it.lim,1))*100));
+    const barClass = pct > 85 ? 'bad' : pct > 65 ? 'warn' : '';
+    return `<div class="metric-card">
+      <div class="mk"><span>${it.k}</span><span class="pct">${pct}%</span></div>
+      <div class="mv">${it.v.toLocaleString()}<em>/ ${it.lim.toLocaleString()}</em></div>
+      <div class="msub">${it.sub}</div>
+      <div class="bar"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ============ USAGE CHART (interactive) ============
+// Generate stable per-day data, seeded by date so it's deterministic.
+function _usageSeed(dayOffset){
+  // simple deterministic pseudo-random based on day
+  const x = Math.sin(dayOffset * 9301 + 49297) * 10000;
+  return x - Math.floor(x);
+}
+function _genUsageDays(n){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const out = [];
+  for (let i = n - 1; i >= 0; i--){
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const r1 = _usageSeed(i+1), r2 = _usageSeed(i+101), r3 = _usageSeed(i+201);
+    // weekday boost (Mon-Fri busier)
+    const dow = d.getDay();
+    const weekBoost = (dow === 0 || dow === 6) ? 0.45 : 1;
+    out.push({
+      date: d,
+      queries: Math.round((20 + r1 * 90) * weekBoost),
+      recordingMin: Math.round((4 + r2 * 22) * weekBoost),
+      sessions: Math.round((6 + r3 * 36) * weekBoost)
+    });
+  }
+  return out;
+}
+
+const _allDays = _genUsageDays(400); // generate enough for 1Y + buffer
+let _currentRange = {kind:'days', n:30, label:'1M'};
+
+function _filterRange(range){
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (range.kind === 'days'){
+    return _allDays.slice(-range.n);
+  }
+  if (range.kind === 'wtd'){
+    // start of week (Mon)
+    const start = new Date(today);
+    const dow = (start.getDay() + 6) % 7; // 0=Mon
+    start.setDate(start.getDate() - dow);
+    return _allDays.filter(d => d.date >= start);
+  }
+  if (range.kind === 'mtd'){
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    return _allDays.filter(d => d.date >= start);
+  }
+  if (range.kind === 'ytd'){
+    const start = new Date(today.getFullYear(), 0, 1);
+    return _allDays.filter(d => d.date >= start);
+  }
+  return _allDays.slice(-30);
+}
+
+function _fmtShortDate(d){
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
+
+function renderUsageChart(){
+  const data = _filterRange(_currentRange);
+  const svg = document.getElementById('usageChart');
+  if (!svg) return;
+  svg.innerHTML = '';
+  const W = 800, H = 200, PAD_T = 14, PAD_B = 12;
+  const innerH = H - PAD_T - PAD_B;
+  const n = data.length;
+  // Compute combined max for scaling — bars are stacked-style: queries vs (rec*5) for visual parity, sessions overlay as line
+  const maxQ = Math.max(1, ...data.map(d => d.queries));
+  const maxR = Math.max(1, ...data.map(d => d.recordingMin));
+  const maxS = Math.max(1, ...data.map(d => d.sessions));
+
+  const barW = (W / n) * 0.7;
+  const slot = W / n;
+
+  // Build groups
+  let bars = '';
+  for (let i = 0; i < n; i++){
+    const d = data[i];
+    const cx = i * slot + slot/2;
+    const qH = (d.queries / maxQ) * innerH * 0.55;
+    const rH = (d.recordingMin / maxR) * innerH * 0.35;
+    const qY = H - PAD_B - qH;
+    const rY = qY - rH - 1;
+    bars += `<g class="bar-grp" data-i="${i}">
+      <rect class="bar-rect" x="${cx - barW/2}" y="${qY}" width="${barW}" height="${qH}" fill="var(--accent)" opacity=".85"/>
+      <rect class="bar-rect" x="${cx - barW/2}" y="${rY}" width="${barW}" height="${rH}" fill="var(--accent-2)" opacity=".75"/>
+    </g>`;
+  }
+
+  // Sessions as a smooth line
+  let linePath = '';
+  data.forEach((d, i) => {
+    const cx = i * slot + slot/2;
+    const sH = (d.sessions / maxS) * innerH * 0.85;
+    const sY = H - PAD_B - sH;
+    linePath += (i === 0 ? `M${cx},${sY}` : ` L${cx},${sY}`);
+  });
+
+  svg.innerHTML = `
+    <line class="hover-line" id="hoverLine" x1="0" y1="${PAD_T}" x2="0" y2="${H - PAD_B}"/>
+    ${bars}
+    <path d="${linePath}" stroke="#7fa8d4" stroke-width="1.5" fill="none" opacity=".9"/>
+    ${data.map((d,i)=>{
+      const cx = i*slot + slot/2;
+      const sY = H - PAD_B - (d.sessions/maxS)*innerH*0.85;
+      return `<circle cx="${cx}" cy="${sY}" r="2" fill="#7fa8d4" opacity=".7"/>`;
+    }).join('')}
+    <rect id="hitArea" x="0" y="0" width="${W}" height="${H}" fill="transparent" style="cursor:crosshair"/>
+  `;
+
+  // Axis labels
+  const axis = document.getElementById('chartAxis');
+  if (axis){
+    const first = data[0]?.date, mid = data[Math.floor(n/2)]?.date, last = data[n-1]?.date;
+    axis.innerHTML = `
+      <span>${first ? _fmtShortDate(first) : '—'}</span>
+      <span>${mid ? _fmtShortDate(mid) : '—'}</span>
+      <span>${last ? _fmtShortDate(last) : 'today'}</span>
+    `;
+  }
+
+  // Sums
+  const sumQ = data.reduce((s,d) => s + d.queries, 0);
+  const sumR = data.reduce((s,d) => s + d.recordingMin, 0);
+  const sumS = data.reduce((s,d) => s + d.sessions, 0);
+  document.getElementById('sumQueries').textContent = sumQ.toLocaleString();
+  document.getElementById('sumRec').textContent = sumR.toLocaleString() + ' min';
+  document.getElementById('sumSessions').textContent = sumS.toLocaleString();
+
+  // Hover tooltip
+  const tip = document.getElementById('chartTooltip');
+  const hitArea = svg.querySelector('#hitArea');
+  const hoverLine = svg.querySelector('#hoverLine');
+  hitArea.addEventListener('mousemove', e => {
+    const rect = svg.getBoundingClientRect();
+    const xPct = (e.clientX - rect.left) / rect.width;
+    const i = Math.min(n - 1, Math.max(0, Math.floor(xPct * n)));
+    const d = data[i];
+    if (!d) return;
+    const cx = i * slot + slot/2;
+    hoverLine.setAttribute('x1', cx); hoverLine.setAttribute('x2', cx);
+    hoverLine.classList.add('show');
+    tip.innerHTML = `
+      <div class="tt-date">${d.date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</div>
+      <div class="tt-row"><span style="color:var(--accent)">● Agent queries</span><b>${d.queries}</b></div>
+      <div class="tt-row"><span style="color:var(--accent-2)">● Recording min</span><b>${d.recordingMin}</b></div>
+      <div class="tt-row"><span style="color:#7fa8d4">● Sessions</span><b>${d.sessions}</b></div>
+    `;
+    tip.classList.add('show');
+    // Position tooltip relative to chart container
+    const containerRect = tip.parentElement.getBoundingClientRect();
+    let left = e.clientX - containerRect.left + 14;
+    if (left + 200 > containerRect.width) left = e.clientX - containerRect.left - 220;
+    tip.style.left = left + 'px';
+    tip.style.top = '14px';
+  });
+  hitArea.addEventListener('mouseleave', () => {
+    tip.classList.remove('show');
+    hoverLine.classList.remove('show');
+  });
+}
+
+// Range pill handlers
+(function initUsageControls(){
+  const pills = document.getElementById('rangePills');
+  const xtdBtn = document.getElementById('xtdBtn');
+  const xtdMenu = document.getElementById('xtdMenu');
+  const head = document.getElementById('usageHead');
+
+  function setRange(kind, n, label){
+    _currentRange = (kind === 'days') ? {kind:'days', n, label} : {kind, label};
+    // visual: mark the right pill, clear xtd label if it's not xtd
+    pills.querySelectorAll('button[data-r]').forEach(b => {
+      b.classList.toggle('active', b.dataset.r === String(n) && kind === 'days');
+    });
+    if (kind !== 'days'){
+      // clear all .active on numeric pills, mark xtdBtn active
+      pills.querySelectorAll('button[data-r]').forEach(b => b.classList.remove('active'));
+      xtdBtn.classList.add('active');
+      xtdBtn.firstChild.textContent = label + ' ';
+    } else {
+      xtdBtn.classList.remove('active');
+      xtdBtn.firstChild.textContent = 'XTD ';
+    }
+    if (head) head.innerHTML = `Activity \u00b7 <em>${label}</em>`;
+    renderUsageChart();
+  }
+
+  pills.addEventListener('click', e => {
+    const b = e.target.closest('button[data-r]'); if (!b || b.parentElement.id === 'xtdMenu') return;
+    setRange('days', parseInt(b.dataset.r,10), b.dataset.label);
+    xtdMenu.classList.remove('open');
+  });
+
+  xtdBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    xtdMenu.classList.toggle('open');
+  });
+  xtdMenu.addEventListener('click', e => {
+    const b = e.target.closest('button[data-r]'); if (!b) return;
+    setRange(b.dataset.r, null, b.dataset.label);
+    xtdMenu.classList.remove('open');
+  });
+  document.addEventListener('click', () => xtdMenu.classList.remove('open'));
+})();
+
+// CSV export
+document.getElementById('exportCsvBtn').addEventListener('click', () => {
+  const data = _filterRange(_currentRange);
+  const rows = [
+    ['date','agent_queries','recording_minutes','sessions'],
+    ...data.map(d => [
+      d.date.toISOString().slice(0,10),
+      d.queries,
+      d.recordingMin,
+      d.sessions
+    ])
+  ];
+  const csv = rows.map(r => r.map(v => {
+    const s = String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fname = `tellar-usage-${_currentRange.label.toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`Exported \u00b7 ${data.length} rows \u00b7 ${fname.split('-').slice(0,3).join('-')}\u2026.csv`);
+});
+
+// ============ BILLING ============
+function renderBilling(b){
+  if (!b || !b.plan) return;
+  document.getElementById('planName').textContent = b.plan.charAt(0).toUpperCase() + b.plan.slice(1);
+  document.getElementById('planPrice').textContent = b.price;
+  document.getElementById('planInt').textContent = '/' + b.interval.slice(0,2);
+  document.getElementById('planMeta').textContent = 'renewing ' + fmtDate(b.nextInvoice);
+  document.getElementById('nextInvoice').textContent = fmtDate(b.nextInvoice) + ' · $' + b.price;
+  if (b.card){
+    document.getElementById('cardBrand').className = 'card-brand ' + b.card.brand;
+    document.getElementById('cardBrand').textContent = b.card.brand.toUpperCase();
+    document.getElementById('cardNum').textContent = '•••• •••• •••• ' + b.card.last4;
+    document.getElementById('cardExp').textContent = 'expires ' + b.card.exp;
+  }
+  const body = document.getElementById('invoiceBody');
+  body.innerHTML = (b.invoices||[]).map(inv => `
+    <tr>
+      <td class="mono">${fmtDate(inv.date)}</td>
+      <td>${b.plan.charAt(0).toUpperCase()+b.plan.slice(1)} plan · monthly</td>
+      <td class="mono">$${inv.amount}.00 USD</td>
+      <td><span class="status-chip active">${inv.status}</span></td>
+      <td><button class="btn btn-ghost">Download PDF</button></td>
+    </tr>
+  `).join('');
+}
+
+// ============ SECURITY ============
+document.getElementById('saveSec').onclick = () => {
+  const defaults = {
+    defaultAccess: document.getElementById('defAccess').value,
+    watermark: document.getElementById('defWatermark').checked,
+    blockScreenRec: document.getElementById('defBlock').checked,
+    agent: document.getElementById('defAgent').checked,
+    download: document.getElementById('defDownload').checked,
+    otc: document.getElementById('defOTC').checked,
+    expire: document.getElementById('defExpire').value,
+    nda: document.getElementById('defNda').checked
+  };
+  localStorage.setItem('tellar:shareDefaults', JSON.stringify(defaults));
+  toast('Defaults saved — applied to new shares');
+};
+const sd = JSON.parse(localStorage.getItem('tellar:shareDefaults')||'null');
+if (sd){
+  document.getElementById('defAccess').value = sd.defaultAccess;
+  document.getElementById('defWatermark').checked = sd.watermark;
+  document.getElementById('defBlock').checked = sd.blockScreenRec;
+  document.getElementById('defAgent').checked = sd.agent;
+  document.getElementById('defDownload').checked = sd.download;
+  document.getElementById('defOTC').checked = sd.otc;
+  document.getElementById('defExpire').value = sd.expire;
+  document.getElementById('defNda').checked = sd.nda;
+}
+
+boot();
+</script>
+
+</body>
+</html>

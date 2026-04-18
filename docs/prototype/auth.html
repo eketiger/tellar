@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tellar — Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .auth-wrap{
+    min-height:100vh;display:grid;grid-template-columns:1fr 1fr;position:relative;z-index:3;
+  }
+
+  /* LEFT — editorial / marketing */
+  .auth-left{
+    padding:48px 56px;display:flex;flex-direction:column;justify-content:space-between;
+    border-right:1px solid var(--line);position:relative;overflow:hidden;
+  }
+  .auth-left::before{
+    content:'';position:absolute;top:0;right:0;bottom:0;width:1px;
+    background:linear-gradient(to bottom,transparent,var(--accent),transparent);opacity:.3;
+  }
+
+  .auth-brand-row{display:flex;align-items:baseline;gap:10px}
+  .auth-brand{font-family:var(--serif);font-style:italic;font-weight:500;font-size:26px;letter-spacing:-.02em}
+  .auth-brand::first-letter{color:var(--accent)}
+  .auth-brand-sub{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase}
+
+  .auth-editorial{max-width:520px}
+  .eyebrow{
+    font-family:var(--mono);font-size:10px;letter-spacing:.25em;
+    color:var(--ink-3);text-transform:uppercase;margin-bottom:22px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:'';width:24px;height:1px;background:var(--accent)}
+  .auth-hl{
+    font-family:var(--serif);font-weight:400;font-size:56px;line-height:1.02;
+    letter-spacing:-.03em;margin-bottom:22px;
+  }
+  .auth-hl em{font-style:italic;color:var(--accent);font-weight:300}
+  .auth-lede{
+    font-size:15px;line-height:1.6;color:var(--ink-2);max-width:460px;
+  }
+  .auth-lede em{font-family:var(--serif);font-style:italic;color:var(--ink)}
+
+  .auth-quote{
+    border-top:1px solid var(--line);padding-top:20px;max-width:460px;
+  }
+  .auth-quote p{
+    font-family:var(--serif);font-style:italic;font-size:15px;line-height:1.5;
+    color:var(--ink-2);margin-bottom:10px;
+  }
+  .auth-quote p::before{content:'"';color:var(--accent);margin-right:2px}
+  .auth-quote p::after{content:'"';color:var(--accent);margin-left:2px}
+  .auth-quote .who{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase}
+
+  /* decorative background lines */
+  .deco{
+    position:absolute;right:-60px;top:200px;width:600px;height:600px;
+    pointer-events:none;opacity:.06;
+  }
+  .deco svg{width:100%;height:100%}
+
+  /* RIGHT — form */
+  .auth-right{
+    padding:48px 56px;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    background:var(--bg);
+  }
+  .auth-form{width:100%;max-width:380px}
+
+  .auth-tabs{
+    display:flex;gap:0;margin-bottom:32px;border-bottom:1px solid var(--line);
+  }
+  .auth-tab{
+    flex:1;padding:12px 0;background:transparent;border:none;cursor:pointer;
+    font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ink-3);position:relative;transition:color .25s;
+  }
+  .auth-tab.active{color:var(--ink)}
+  .auth-tab.active::after{
+    content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);
+  }
+
+  .form-title{
+    font-family:var(--serif);font-size:28px;font-weight:400;letter-spacing:-.02em;
+    margin-bottom:6px;
+  }
+  .form-title em{font-style:italic;color:var(--accent)}
+  .form-sub{
+    color:var(--ink-2);font-size:13px;margin-bottom:28px;
+  }
+
+  .oauth{
+    display:flex;flex-direction:column;gap:10px;margin-bottom:24px;
+  }
+  .oauth-btn{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    padding:11px 14px;border:1px solid var(--line-2);background:var(--panel-2);
+    color:var(--ink);font-family:var(--sans);font-size:13px;font-weight:500;
+    cursor:pointer;transition:all .2s;border-radius:2px;
+  }
+  .oauth-btn:hover{border-color:var(--line-3);background:var(--panel-3)}
+  .oauth-btn svg{width:16px;height:16px}
+
+  .divider{
+    display:flex;align-items:center;gap:12px;margin:20px 0;
+    font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;
+  }
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
+
+  .auth-submit{
+    width:100%;padding:13px;border:none;background:var(--accent);color:#0c0d0f;
+    font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;
+    margin-top:8px;transition:background .2s;border-radius:2px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .auth-submit:hover{background:#e8ad3a}
+
+  .auth-footer{
+    margin-top:20px;text-align:center;font-size:12px;color:var(--ink-3);
+  }
+  .auth-footer a{color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px}
+  .auth-footer a:hover{color:var(--accent)}
+
+  .forgot{text-align:right;font-size:12px;margin-top:-10px;margin-bottom:16px}
+  .forgot a{color:var(--ink-2);text-decoration:none;font-family:var(--serif);font-style:italic}
+  .forgot a:hover{color:var(--accent)}
+
+  .hidden{display:none}
+
+  @media (max-width:960px){
+    .auth-wrap{grid-template-columns:1fr}
+    .auth-left{display:none}
+    .auth-right{padding:40px 28px}
+  }
+</style>
+</head>
+<body>
+
+<div class="auth-wrap">
+
+  <!-- LEFT SIDE -->
+  <div class="auth-left">
+    <div class="auth-brand-row fade-in d1">
+      <div class="auth-brand">tellar</div>
+      <div class="auth-brand-sub">/ studio</div>
+    </div>
+
+    <div class="auth-editorial fade-in d2">
+      <div class="eyebrow">presentations, measured</div>
+      <h1 class="auth-hl">
+        Presentations<br/>
+        that <em>know</em><br/>
+        when they<br/>
+        lose you.
+      </h1>
+      <p class="auth-lede">
+        Share a deck, record your narration, and let an agent answer every question
+        your viewers don't dare to ask. <em>Then see exactly where they dropped off,
+        and why.</em>
+      </p>
+    </div>
+
+    <div class="auth-quote fade-in d3">
+      <p>Tellar replaced three tools for us. DocSend, Loom, and that one intern who chased investors for feedback.</p>
+      <div class="who">— early user · fintech seed</div>
+    </div>
+
+    <div class="deco">
+      <svg viewBox="0 0 600 600">
+        <defs>
+          <pattern id="gridp" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width=".5"/>
+          </pattern>
+        </defs>
+        <rect width="600" height="600" fill="url(#gridp)" color="#fff"/>
+        <circle cx="300" cy="300" r="260" fill="none" stroke="#f4b942" stroke-width="1" stroke-dasharray="2,6"/>
+        <circle cx="300" cy="300" r="180" fill="none" stroke="#f4b942" stroke-width="1"/>
+        <circle cx="300" cy="300" r="100" fill="none" stroke="#f4b942" stroke-width="1" stroke-dasharray="4,4"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <div class="auth-right">
+    <div class="auth-form">
+
+      <div class="auth-tabs fade-in d1">
+        <button class="auth-tab active" data-tab="signin">sign in</button>
+        <button class="auth-tab" data-tab="signup">create account</button>
+      </div>
+
+      <!-- SIGN IN -->
+      <div id="pane-signin" class="fade-in d2">
+        <h2 class="form-title">Welcome <em>back.</em></h2>
+        <p class="form-sub">Pick up where your last deck left off.</p>
+
+        <div class="oauth">
+          <button class="oauth-btn" onclick="doOAuth('google')">
+            <svg viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Continue with Google
+          </button>
+          <button class="oauth-btn" onclick="doOAuth('github')">
+            <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.28-.01-1.04-.02-2.05-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.82 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 016 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.92.43.37.82 1.1.82 2.22 0 1.6-.02 2.89-.02 3.28 0 .32.22.7.83.58C20.57 22.29 24 17.8 24 12.5 24 5.87 18.63.5 12 .5z"/></svg>
+            Continue with GitHub
+          </button>
+        </div>
+
+        <div class="divider">or</div>
+
+        <form id="signin-form" onsubmit="return doSignin(event)">
+          <div class="field">
+            <label class="field-label">email</label>
+            <input type="email" id="si-email" class="field-input" placeholder="martin@company.com" value="martin@tellar.studio" required/>
+          </div>
+          <div class="field">
+            <label class="field-label">password</label>
+            <input type="password" id="si-pwd" class="field-input" placeholder="••••••••••••" value="demo1234" required/>
+          </div>
+          <div class="forgot"><a href="#">forgot password?</a></div>
+          <div id="si-err" style="color:var(--bad);font-size:12px;margin-bottom:10px;display:none;font-family:var(--mono)"></div>
+
+          <button type="submit" class="auth-submit">
+            <span>Sign in</span>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 7h11M8 3l4 4-4 4"/></svg>
+          </button>
+        </form>
+
+        <div class="auth-footer">
+          New here? <a href="#" onclick="switchTab('signup');return false;">Create an account →</a>
+        </div>
+      </div>
+
+      <!-- SIGN UP -->
+      <div id="pane-signup" class="hidden">
+        <h2 class="form-title">Begin a <em>tellar.</em></h2>
+        <p class="form-sub">Free forever for up to 3 tellers. No card.</p>
+
+        <div class="oauth">
+          <button class="oauth-btn" onclick="doOAuth('google')">
+            <svg viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Sign up with Google
+          </button>
+        </div>
+
+        <div class="divider">or</div>
+
+        <form id="signup-form" onsubmit="return doSignup(event)">
+          <div class="field">
+            <label class="field-label">full name</label>
+            <input type="text" id="su-name" class="field-input" placeholder="Martín Echeverría" required/>
+          </div>
+          <div class="field">
+            <label class="field-label">work email</label>
+            <input type="email" id="su-email" class="field-input" placeholder="martin@company.com" required/>
+          </div>
+          <div class="field">
+            <label class="field-label">password</label>
+            <input type="password" id="su-pwd" class="field-input" placeholder="8+ characters" required minlength="8"/>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:10px;margin:14px 0 6px;font-size:12px;color:var(--ink-2);line-height:1.5">
+            <input type="checkbox" checked required style="margin-top:2px"/>
+            <span>I agree to the <a href="#" style="color:var(--ink);text-decoration:underline;text-decoration-color:var(--line-2)">Terms</a> and <a href="#" style="color:var(--ink);text-decoration:underline;text-decoration-color:var(--line-2)">Privacy Policy</a>.</span>
+          </div>
+          <div id="su-err" style="color:var(--bad);font-size:12px;margin-bottom:10px;display:none;font-family:var(--mono)"></div>
+
+          <button type="submit" class="auth-submit">
+            <span>Create account</span>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 7h11M8 3l4 4-4 4"/></svg>
+          </button>
+        </form>
+
+        <div class="auth-footer">
+          Already have an account? <a href="#" onclick="switchTab('signin');return false;">Sign in →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Nav dock for prototype -->
+<div class="nav-dock">
+  <span class="dock-brand">tellar demo</span>
+  <a href="home.html">home</a>
+  <a href="auth.html" class="active">auth</a>
+  <a href="dashboard.html">dashboard</a>
+  <a href="editor.html">editor</a>
+  <a href="share.html">share</a>
+  <a href="viewer.html">viewer</a>
+<a href="settings.html">settings</a>
+  <a href="handoff.html">handoff</a>
+</div>
+
+<script src="api.js"></script>
+<script>
+  function switchTab(tab){
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.getElementById('pane-signin').classList.toggle('hidden', tab !== 'signin');
+    document.getElementById('pane-signup').classList.toggle('hidden', tab !== 'signup');
+  }
+  document.querySelectorAll('.auth-tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  function showErr(id, msg){
+    const el = document.getElementById(id);
+    el.textContent = '// ' + msg;
+    el.style.display = 'block';
+  }
+
+  async function doSignin(e){
+    e.preventDefault();
+    const email = document.getElementById('si-email').value.trim();
+    const pwd = document.getElementById('si-pwd').value;
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.querySelector('span').textContent = 'Signing in...';
+    try{
+      await TellarAPI.login({email, password: pwd});
+      window.location.href = 'dashboard.html';
+    }catch(err){
+      showErr('si-err', err.message);
+      btn.disabled = false; btn.querySelector('span').textContent = 'Sign in';
+    }
+    return false;
+  }
+
+  async function doSignup(e){
+    e.preventDefault();
+    const name = document.getElementById('su-name').value.trim();
+    const email = document.getElementById('su-email').value.trim();
+    const pwd = document.getElementById('su-pwd').value;
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.querySelector('span').textContent = 'Creating...';
+    try{
+      await TellarAPI.register({name, email, password: pwd});
+      window.location.href = 'dashboard.html';
+    }catch(err){
+      showErr('su-err', err.message);
+      btn.disabled = false; btn.querySelector('span').textContent = 'Create account';
+    }
+    return false;
+  }
+
+  async function doOAuth(provider){
+    await TellarAPI.oauth(provider);
+    window.location.href = 'dashboard.html';
+  }
+
+  // If already logged in, offer to continue
+  if (TellarAPI.session()){
+    document.querySelector('.form-sub').insertAdjacentHTML('afterend',
+      `<div style="padding:10px 12px;border:1px dashed var(--line-2);background:var(--panel-2);margin-bottom:20px;font-size:12px">
+        Already signed in as <em style="color:var(--accent);font-family:var(--serif);font-style:italic">${TellarAPI.session().email}</em> — 
+        <a href="dashboard.html" style="color:var(--accent);text-decoration:none;font-family:var(--mono);letter-spacing:.05em;font-size:10px">CONTINUE →</a>
+        · <a href="#" onclick="TellarAPI.logout();location.reload();return false" style="color:var(--ink-3);text-decoration:none;font-family:var(--mono);font-size:10px">SIGN OUT</a>
+      </div>`);
+  }
+</script>
+
+</body>
+</html>

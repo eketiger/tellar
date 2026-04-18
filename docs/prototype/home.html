@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tellar — Presentations that know when they lose you.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500;1,9..144,600&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .home-nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:18px 36px;background:rgba(12,13,15,.6);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .hn-brand{font-family:var(--serif);font-style:italic;font-weight:500;font-size:22px;letter-spacing:-.02em}
+  .hn-brand::first-letter{color:var(--accent)}
+  .hn-links{display:flex;gap:30px;font-family:var(--mono);font-size:10px;color:var(--ink-2);letter-spacing:.2em;text-transform:uppercase}
+  .hn-links a{color:var(--ink-2);transition:color .2s}
+  .hn-links a:hover{color:var(--accent)}
+  .hn-cta{display:flex;gap:10px;align-items:center}
+  .hn-cta .btn{white-space:nowrap}
+
+  .home-main{padding-top:80px;position:relative;z-index:3}
+
+  /* HERO */
+  .hero{padding:80px 36px 120px;max-width:1400px;margin:0 auto;position:relative}
+  .hero-kicker{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.3em;text-transform:uppercase;margin-bottom:24px;display:flex;align-items:center;gap:10px}
+  .hero-kicker::before{content:'';width:24px;height:1px;background:var(--accent)}
+  .hero h1{font-family:var(--serif);font-size:clamp(48px, 7.2vw, 96px);font-weight:300;line-height:1.02;letter-spacing:-.035em;max-width:1100px}
+  .hero h1 em{font-style:italic;color:var(--accent);font-weight:400}
+  .hero h1 .gray{color:var(--ink-3)}
+  .hero .lede{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink-2);margin-top:32px;max-width:640px;line-height:1.45}
+  .hero .lede b{font-style:normal;color:var(--ink);font-weight:500}
+  .hero-cta{display:flex;gap:14px;margin-top:44px;align-items:center;flex-wrap:wrap}
+  .btn-hero{padding:16px 26px;background:var(--accent);color:#0c0d0f;border:none;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;font-weight:500;transition:all .2s;display:inline-flex;align-items:center;gap:10px}
+  .btn-hero:hover{background:#e8ad3a;transform:translateY(-1px)}
+  .btn-hero-ghost{padding:16px 24px;background:transparent;color:var(--ink);border:1px solid var(--line-2);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:10px}
+  .btn-hero-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .hero-stat{margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.15em}
+  .hero-stat b{color:var(--good);font-weight:500}
+
+  /* Ornament row */
+  .hero-ornament{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;margin-top:80px;padding-top:40px;border-top:1px solid var(--line)}
+  .ho-logos{display:flex;gap:40px;flex-wrap:wrap}
+  .ho-logo{font-family:var(--serif);font-style:italic;font-size:17px;color:var(--ink-3);letter-spacing:-.02em;transition:color .2s}
+  .ho-logo:hover{color:var(--ink-2)}
+  .ho-label{font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:.25em;text-transform:uppercase;white-space:nowrap}
+
+  /* PROBLEM */
+  .problem{padding:120px 36px;max-width:1400px;margin:0 auto;position:relative}
+  .problem-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+  .prob-copy .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:20px}
+  .prob-copy h2{font-family:var(--serif);font-size:72px;font-weight:300;letter-spacing:-.03em;line-height:1;margin-bottom:30px}
+  .prob-copy h2 em{font-style:italic;color:var(--accent)}
+  .prob-copy p{font-family:var(--serif);font-size:18px;color:var(--ink-2);line-height:1.55;margin-bottom:18px}
+  .prob-copy p em{font-style:italic;color:var(--ink)}
+
+  .prob-visual{position:relative;height:540px}
+  /* Mock pdf being sent into void */
+  .prob-doc{position:absolute;background:#f6f3ed;color:#1a1a1a;width:260px;padding:26px;font-family:var(--serif);transform-origin:center;transition:transform .4s}
+  .prob-doc::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 90%,var(--bg) 90%)}
+  .prob-doc h3{font-family:var(--serif);font-size:22px;font-weight:400;letter-spacing:-.02em;margin-bottom:10px}
+  .prob-doc h3 em{font-style:italic;color:#c89a3a}
+  .prob-doc .pdoc-lines span{display:block;height:3px;background:#1a1a1a33;margin-bottom:5px}
+  .prob-doc .pdoc-lines span:nth-child(1){width:100%}
+  .prob-doc .pdoc-lines span:nth-child(2){width:85%}
+  .prob-doc .pdoc-lines span:nth-child(3){width:65%}
+  .prob-doc .pdoc-lines span:nth-child(4){width:90%}
+  .prob-doc .pdoc-meta{font-family:var(--mono);font-size:9px;color:#aaa;letter-spacing:.15em;margin-top:16px;text-transform:uppercase}
+  .prob-doc.d1{top:40px;left:30px;transform:rotate(-6deg);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .prob-doc.d2{top:110px;left:120px;transform:rotate(2deg);opacity:.6;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+  .prob-doc.d3{top:210px;left:70px;transform:rotate(-3deg);opacity:.3;filter:blur(1px);box-shadow:0 20px 60px rgba(0,0,0,.15)}
+  .prob-doc.d4{top:300px;left:160px;transform:rotate(4deg);opacity:.15;filter:blur(2px)}
+
+  .prob-questions{position:absolute;right:0;top:30px;display:flex;flex-direction:column;gap:14px;width:280px}
+  .prob-q{padding:12px 16px;background:var(--panel);border:1px solid var(--line);font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-2);position:relative}
+  .prob-q::before{content:'?';position:absolute;top:10px;right:14px;font-family:var(--serif);font-style:italic;color:var(--bad);font-size:22px;font-weight:500}
+
+  /* HOW IT WORKS */
+  .how{padding:120px 36px;max-width:1400px;margin:0 auto}
+  .how-head{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-bottom:80px;align-items:end}
+  .how-head .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:20px}
+  .how-head h2{font-family:var(--serif);font-size:84px;font-weight:300;letter-spacing:-.04em;line-height:.95}
+  .how-head h2 em{font-style:italic;color:var(--accent)}
+  .how-head p{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-2);line-height:1.55}
+
+  .how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+  .how-step{position:relative;padding:32px;background:var(--panel);border:1px solid var(--line);min-height:380px;display:flex;flex-direction:column}
+  .how-step .num{font-family:var(--serif);font-style:italic;font-size:80px;color:var(--accent);line-height:.8;margin-bottom:30px;font-weight:400}
+  .how-step h3{font-family:var(--serif);font-size:26px;font-weight:400;letter-spacing:-.02em;margin-bottom:12px}
+  .how-step h3 em{font-style:italic;color:var(--accent)}
+  .how-step p{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--ink-2);line-height:1.5;flex:1}
+  .how-step .chip{margin-top:20px;padding:6px 10px;border:1px solid var(--line-2);font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);align-self:flex-start;border-radius:10px}
+
+  /* THREE IN ONE */
+  .three{padding:120px 36px;max-width:1400px;margin:0 auto}
+  .three-head{text-align:center;margin-bottom:70px}
+  .three-head .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:20px}
+  .three-head h2{font-family:var(--serif);font-size:72px;font-weight:300;letter-spacing:-.04em;line-height:1}
+  .three-head h2 em{font-style:italic;color:var(--accent)}
+  .three-head p{font-family:var(--serif);font-style:italic;font-size:17px;color:var(--ink-2);margin-top:20px;max-width:580px;margin-left:auto;margin-right:auto;line-height:1.5}
+
+  .three-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
+  .three-col{padding:40px 34px;background:var(--bg);position:relative;min-height:420px;display:flex;flex-direction:column}
+  .three-col .cref{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;margin-bottom:22px}
+  .three-col .cref b{color:var(--ink)}
+  .three-col h3{font-family:var(--serif);font-size:32px;font-weight:400;letter-spacing:-.02em;margin-bottom:16px;line-height:1.05}
+  .three-col h3 em{font-style:italic;color:var(--accent)}
+  .three-col .desc{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-2);line-height:1.55;margin-bottom:22px}
+  .three-col ul{list-style:none;padding:0;margin:auto 0 0;display:flex;flex-direction:column;gap:8px}
+  .three-col li{font-family:var(--serif);font-size:13px;color:var(--ink);padding-left:18px;position:relative;line-height:1.4}
+  .three-col li::before{content:'·';position:absolute;left:0;top:-4px;color:var(--accent);font-size:22px}
+  .three-col li em{font-style:italic;color:var(--accent)}
+
+  /* FEATURE MATRIX */
+  .matrix{padding:120px 36px;max-width:1400px;margin:0 auto}
+  .matrix-head{margin-bottom:50px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:end}
+  .matrix-head .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:20px}
+  .matrix-head h2{font-family:var(--serif);font-size:64px;font-weight:300;letter-spacing:-.03em;line-height:1}
+  .matrix-head h2 em{font-style:italic;color:var(--accent)}
+  .matrix-head p{font-family:var(--serif);font-style:italic;font-size:16px;color:var(--ink-2);line-height:1.55}
+
+  .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .feat{padding:32px 28px;background:var(--bg);min-height:220px;transition:background .25s}
+  .feat:hover{background:var(--panel)}
+  .feat .fi{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+  .feat h4{font-family:var(--serif);font-size:22px;font-weight:400;letter-spacing:-.015em;margin-bottom:10px;line-height:1.15}
+  .feat h4 em{font-style:italic;color:var(--accent)}
+  .feat p{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-2);line-height:1.55}
+
+  /* QUOTE */
+  .quote-row{padding:100px 36px;max-width:1100px;margin:0 auto;text-align:center}
+  .quote-row blockquote{font-family:var(--serif);font-size:44px;line-height:1.2;font-weight:300;letter-spacing:-.02em;color:var(--ink)}
+  .quote-row blockquote em{font-style:italic;color:var(--accent)}
+  .quote-row .cite{margin-top:30px;font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.2em;text-transform:uppercase}
+
+  /* PRICING */
+  .pricing{padding:120px 36px;max-width:1400px;margin:0 auto}
+  .pricing-head{text-align:center;margin-bottom:60px}
+  .pricing-head .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:20px}
+  .pricing-head h2{font-family:var(--serif);font-size:72px;font-weight:300;letter-spacing:-.04em;line-height:1}
+  .pricing-head h2 em{font-style:italic;color:var(--accent)}
+  .pricing-head p{font-family:var(--serif);font-style:italic;font-size:16px;color:var(--ink-2);margin-top:16px}
+
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .tier{padding:38px 32px;background:var(--panel);border:1px solid var(--line);position:relative;display:flex;flex-direction:column;min-height:560px}
+  .tier.feat-tier{background:linear-gradient(180deg,rgba(244,185,66,.06),transparent);border-color:var(--accent)}
+  .tier-badge{position:absolute;top:-11px;left:24px;padding:4px 10px;background:var(--accent);color:#0c0d0f;font-family:var(--mono);font-size:9px;letter-spacing:.25em;text-transform:uppercase;font-weight:500}
+  .tier .tn{font-family:var(--serif);font-size:28px;font-style:italic;font-weight:400;color:var(--accent);margin-bottom:8px}
+  .tier .tp{font-family:var(--serif);font-size:72px;font-weight:300;letter-spacing:-.04em;line-height:.9}
+  .tier .tp em{font-style:italic;color:var(--accent);font-size:38px;margin-right:4px}
+  .tier .tpm{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.2em;text-transform:uppercase;margin-top:6px;margin-bottom:26px}
+  .tier .td{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-2);line-height:1.55;margin-bottom:26px;min-height:68px}
+  .tier ul{list-style:none;padding:0;margin:0 0 30px;flex:1}
+  .tier li{font-family:var(--serif);font-size:14px;color:var(--ink);padding:10px 0 10px 24px;border-bottom:1px solid var(--line);position:relative;line-height:1.3}
+  .tier li:last-child{border-bottom:none}
+  .tier li::before{content:'✓';position:absolute;left:0;top:10px;color:var(--accent);font-family:var(--mono);font-size:11px}
+  .tier li em{font-style:italic;color:var(--accent)}
+  .tier .cta{width:100%;padding:14px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;cursor:pointer;border:1px solid var(--line-2);background:transparent;color:var(--ink);transition:all .2s;font-weight:500}
+  .tier .cta:hover{border-color:var(--accent);color:var(--accent)}
+  .tier.feat-tier .cta{background:var(--accent);color:#0c0d0f;border-color:var(--accent)}
+  .tier.feat-tier .cta:hover{background:#e8ad3a}
+
+  /* FAQ */
+  .faq{padding:120px 36px;max-width:900px;margin:0 auto}
+  .faq-head{text-align:center;margin-bottom:60px}
+  .faq-head .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:20px}
+  .faq-head h2{font-family:var(--serif);font-size:56px;font-weight:300;letter-spacing:-.03em}
+  .faq-head h2 em{font-style:italic;color:var(--accent)}
+  .faq-item{border-bottom:1px solid var(--line);padding:24px 0;cursor:pointer}
+  .faq-item summary{list-style:none;font-family:var(--serif);font-size:22px;color:var(--ink);display:flex;justify-content:space-between;align-items:center;letter-spacing:-.01em}
+  .faq-item summary::-webkit-details-marker{display:none}
+  .faq-item summary::after{content:'+';font-family:var(--serif);font-style:italic;color:var(--accent);font-size:32px;line-height:1;transition:transform .25s}
+  .faq-item[open] summary::after{transform:rotate(45deg)}
+  .faq-item p{font-family:var(--serif);font-style:italic;color:var(--ink-2);font-size:15px;margin-top:14px;line-height:1.6}
+  .faq-item p em{color:var(--ink)}
+
+  /* CTA */
+  .cta{padding:150px 36px;max-width:1200px;margin:0 auto;text-align:center;position:relative}
+  .cta::before{content:'';position:absolute;inset:0;background:radial-gradient(600px 300px at 50% 50%, rgba(244,185,66,.06), transparent 70%);pointer-events:none}
+  .cta h2{font-family:var(--serif);font-size:clamp(56px,8vw,110px);font-weight:300;letter-spacing:-.04em;line-height:.95;position:relative}
+  .cta h2 em{font-style:italic;color:var(--accent)}
+  .cta p{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink-2);margin-top:24px;position:relative}
+  .cta .cta-actions{margin-top:40px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative}
+
+  /* FOOTER */
+  .foot{padding:60px 36px 40px;border-top:1px solid var(--line);margin-top:40px}
+  .foot-grid{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
+  .foot-brand{font-family:var(--serif);font-style:italic;font-size:32px;letter-spacing:-.02em;margin-bottom:18px}
+  .foot-brand::first-letter{color:var(--accent)}
+  .foot-motto{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--ink-3);max-width:320px;line-height:1.55}
+  .foot-col h5{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px}
+  .foot-col a{display:block;font-family:var(--serif);font-size:14px;color:var(--ink-2);padding:5px 0;transition:color .2s}
+  .foot-col a:hover{color:var(--accent)}
+  .foot-bot{max-width:1400px;margin:40px auto 0;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.15em;text-transform:uppercase}
+
+  @media (max-width:900px){
+    .home-nav{padding:14px 20px}
+    .hn-links{display:none}
+    .hero{padding:60px 22px 80px}
+    .hero h1{font-size:52px}
+    .problem,.how,.three,.matrix,.pricing,.faq,.cta{padding-left:22px;padding-right:22px}
+    .problem-grid,.how-head,.matrix-head,.foot-grid{grid-template-columns:1fr;gap:40px}
+    .how-steps,.three-grid,.feat-grid,.tiers{grid-template-columns:1fr}
+    .prob-visual{height:auto;min-height:420px}
+    .quote-row blockquote{font-size:28px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="home-nav">
+  <a href="home.html" class="hn-brand">tellar</a>
+  <div class="hn-links">
+    <a href="#how">How it works</a>
+    <a href="#product">Product</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+  </div>
+  <div class="hn-cta">
+    <a href="auth.html" class="btn btn-ghost">Sign in</a>
+    <a href="auth.html?mode=signup" class="btn btn-primary">Start free</a>
+  </div>
+</nav>
+
+<main class="home-main">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-kicker">tellar · doc + demo + agent</div>
+    <h1>Your deck <em>answers back.</em><br/><span class="gray">Watch where it</span> <em>loses them.</em></h1>
+    <p class="lede">One surface for the <b>pitch</b>, the <b>recorded walkthrough</b>, and the <b>agent</b> that fields questions when you're not in the room. Every slide a signal. Every viewer a story.</p>
+    <div class="hero-cta">
+      <a href="auth.html?mode=signup" class="btn-hero">Start building — free
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6h10M7 2l4 4-4 4"/></svg>
+      </a>
+      <a href="viewer.html" class="btn-hero-ghost">Watch a live tellar
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><path d="M2 1l8 4.5-8 4.5z"/></svg>
+      </a>
+    </div>
+    <div class="hero-stat">◦ <b>no credit card</b> · 14-day pro trial · cancel from the dashboard</div>
+
+    <div class="hero-ornament">
+      <div class="ho-logos">
+        <span class="ho-logo">Linear</span>
+        <span class="ho-logo">Ramp</span>
+        <span class="ho-logo">Stripe Atlas</span>
+        <span class="ho-logo">Notion</span>
+        <span class="ho-logo">Retool</span>
+        <span class="ho-logo">Vercel</span>
+      </div>
+      <div class="ho-label">trusted by founders raising</div>
+      <div class="ho-label" style="text-align:right">$2.4B+ combined</div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="problem">
+    <div class="problem-grid">
+      <div class="prob-copy">
+        <div class="eyebrow">the thing nobody fixed</div>
+        <h2>You send the deck <em>and disappear.</em></h2>
+        <p>Attach a PDF. Hit send. Wait. <em>Did they open it? Which slide killed the deal? Were their questions ever answered?</em> You'll never know — and they'll never ask.</p>
+        <p>DocSend tells you they opened slide 7. Loom plays you a walkthrough. ChatGPT fields the follow-ups. Three tabs. Three tools. Three dead ends.</p>
+      </div>
+      <div class="prob-visual">
+        <div class="prob-doc d1">
+          <h3>Series A <em>pitch.</em></h3>
+          <div class="pdoc-lines"><span></span><span></span><span></span><span></span></div>
+          <div class="pdoc-meta">page 1 / 17 · pdf</div>
+        </div>
+        <div class="prob-doc d2"></div>
+        <div class="prob-doc d3"></div>
+        <div class="prob-doc d4"></div>
+        <div class="prob-questions">
+          <div class="prob-q">what's the CAC payback again?</div>
+          <div class="prob-q">wait — did they raise already?</div>
+          <div class="prob-q">who is on the founding team?</div>
+          <div class="prob-q">moat? I didn't see a moat slide…</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how" id="how">
+    <div class="how-head">
+      <div>
+        <div class="eyebrow">how it works</div>
+        <h2>Build it once. <em>Ship it everywhere.</em></h2>
+      </div>
+      <p>A tellar is three surfaces in one file: the slides, the narration, the agent. You build it in an editor that feels like Keynote. You ship a link that feels like Loom. Your viewers ask questions and get cited answers — without you in the room.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="num">01</div>
+        <h3>Import your <em>deck.</em></h3>
+        <p>Drop a PDF, a Keynote, a Gamma. Tellar turns every slide into an editable frame. Keep the story — we keep the pixels.</p>
+        <span class="chip">editor · 45 sec</span>
+      </div>
+      <div class="how-step">
+        <div class="num">02</div>
+        <h3>Record your <em>narration.</em></h3>
+        <p>Slide by slide, on your own time. Cam + mic, screen + mic, or just voice. Your webcam floats on every slide — no more flat decks.</p>
+        <span class="chip">loom-style · slide-synced</span>
+      </div>
+      <div class="how-step">
+        <div class="num">03</div>
+        <h3>Attach your <em>knowledge.</em></h3>
+        <p>Drop in the 40-page appendix, the market research, the FAQ, the financial model. Your agent cites every answer back to the slide or source.</p>
+        <span class="chip">pdfs · urls · spreadsheets</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- THREE IN ONE -->
+  <section class="three" id="product">
+    <div class="three-head">
+      <div class="eyebrow">one surface. three products.</div>
+      <h2>We didn't <em>pick a lane.</em></h2>
+      <p>DocSend, Loom, and an AI agent — stitched together so tightly you'll forget they were ever three tabs. Every slide is a video, a document, and a conversation at the same time.</p>
+    </div>
+    <div class="three-grid">
+      <div class="three-col">
+        <div class="cref">like <b>docsend</b> — but</div>
+        <h3>Every <em>slide</em> logged. Every <em>viewer</em> tracked.</h3>
+        <p class="desc">See who opened, which slide they lingered on, where they bailed. Email gating, watermarks, revoke-at-any-time links. Enterprise-grade from day one.</p>
+        <ul>
+          <li>Per-slide <em>dwell time</em> heatmaps</li>
+          <li>Real-time <em>funnel</em> and drop-off</li>
+          <li>Email gate, passphrase, domain allow-list</li>
+          <li>Live <em>notifications</em> when your deck opens</li>
+        </ul>
+      </div>
+      <div class="three-col">
+        <div class="cref">like <b>loom</b> — but</div>
+        <h3>Your <em>voice</em>. Your <em>face</em>. Slide-synced.</h3>
+        <p class="desc">Record narration per slide from your browser. Your webcam floats in the corner. Viewers can play, skip, or ask — and you see every re-watch.</p>
+        <ul>
+          <li>Cam + mic, screen + mic, <em>voice-only</em></li>
+          <li>Re-record a single slide, not the whole thing</li>
+          <li>Auto-generated <em>transcript</em> for the agent</li>
+          <li>Plays on mobile · under 2MB per slide</li>
+        </ul>
+      </div>
+      <div class="three-col">
+        <div class="cref">like <b>agents</b> — but</div>
+        <h3>A <em>colleague</em> at the viewer's side, 24/7.</h3>
+        <p class="desc">Trained on your slides, your narration, and your attached knowledge. Cites every answer. Doesn't hallucinate — refuses politely when it doesn't know.</p>
+        <ul>
+          <li>Grounded in <em>your</em> docs, nothing else</li>
+          <li>Cites slide numbers and source pages</li>
+          <li>Logs every question — you see what's unclear</li>
+          <li>Hand-off to you by <em>one click</em></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE MATRIX -->
+  <section class="matrix">
+    <div class="matrix-head">
+      <div>
+        <div class="eyebrow">what's in the box</div>
+        <h2>A studio, <em>not a template.</em></h2>
+      </div>
+      <p>Tellar is opinionated where it matters — recording flow, agent citations, viewer security — and boring everywhere else. You shouldn't have to learn a new tool to send a better deck.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="fi">◦ editor</div>
+        <h4>A deck editor that <em>doesn't fight you.</em></h4>
+        <p>Import from PDF, Keynote, Gamma, Pitch, Figma. Inline edit text. Swap images. Keep the fonts you already love.</p>
+      </div>
+      <div class="feat">
+        <div class="fi">◦ capture</div>
+        <h4>Record in your browser. <em>Zero install.</em></h4>
+        <p>Per-slide cam + mic recording with a teleprompter. Re-take a single slide without redoing the whole deck.</p>
+      </div>
+      <div class="feat">
+        <div class="fi">◦ agent</div>
+        <h4>An agent that <em>actually says "I don't know."</em></h4>
+        <p>Grounded on your slides and KB only. Cites every answer. Refuses off-topic. Escalates to you in one click.</p>
+      </div>
+      <div class="feat">
+        <div class="fi">◦ analytics</div>
+        <h4>Funnel + heatmap + <em>per-viewer replay.</em></h4>
+        <p>See the session like a screen recording. Know which investor spent 4 minutes on slide 11 and skipped the ask.</p>
+      </div>
+      <div class="feat">
+        <div class="fi">◦ sharing</div>
+        <h4>Links that you control <em>after you send.</em></h4>
+        <p>Email gate, domain allow-list, passphrase, NDA, screen-rec block, expiry, one-time code. Revoke any time.</p>
+      </div>
+      <div class="feat">
+        <div class="fi">◦ integrations</div>
+        <h4>Fits in your <em>existing stack.</em></h4>
+        <p>Slack alerts. HubSpot/Salesforce activity. Segment event pipe. REST API + webhooks on Scale and up.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUOTE -->
+  <section class="quote-row">
+    <blockquote>"The first deck I sent over Tellar got <em>three investor meetings</em> within 48 hours. I watched one of them re-watch slide 4 twice. That slide <em>was</em> the deal."</blockquote>
+    <div class="cite">— Nora Álvarez · founder, Kova · <span style="color:var(--accent)">raised $6M seed, Q1 2026</span></div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="pricing" id="pricing">
+    <div class="pricing-head">
+      <div class="eyebrow">pricing</div>
+      <h2>Pay for <em>answers.</em> Not seats.</h2>
+      <p>Free forever for solo founders. Pro when you're shipping weekly. Scale when your sales team is.</p>
+    </div>
+    <div class="tiers">
+      <div class="tier">
+        <div class="tn">Hobby</div>
+        <div class="tp"><em>$</em>0</div>
+        <div class="tpm">forever · 1 seat</div>
+        <div class="td">For founders building their first deck. Every feature — smaller quotas.</div>
+        <ul>
+          <li>Up to <em>3</em> tellars</li>
+          <li>30 min of recording</li>
+          <li>100 agent queries / month</li>
+          <li>Email-gated sharing</li>
+          <li>Basic analytics</li>
+        </ul>
+        <button class="cta" onclick="window.location='auth.html?mode=signup&plan=hobby'">Get started free</button>
+      </div>
+      <div class="tier feat-tier">
+        <span class="tier-badge">most popular</span>
+        <div class="tn">Pro</div>
+        <div class="tp"><em>$</em>49</div>
+        <div class="tpm">per user · per month</div>
+        <div class="td">For founders and small teams actively raising, selling, or onboarding.</div>
+        <ul>
+          <li><em>Unlimited</em> tellars</li>
+          <li>300 min of recording</li>
+          <li>1,000 agent queries / month</li>
+          <li>All sharing controls + NDA + watermark</li>
+          <li>Per-viewer replay &amp; full analytics</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="cta" onclick="window.location='auth.html?mode=signup&plan=pro'">Start 14-day trial</button>
+      </div>
+      <div class="tier">
+        <div class="tn">Scale</div>
+        <div class="tp"><em>$</em>199</div>
+        <div class="tpm">per user · per month</div>
+        <div class="td">For sales-led orgs. SSO, audit, and API access included from seat one.</div>
+        <ul>
+          <li>Everything in Pro</li>
+          <li><em>Unlimited</em> recording &amp; queries</li>
+          <li>SSO (Okta, Azure AD) &amp; SCIM</li>
+          <li>Custom domain + NDA templates</li>
+          <li>REST API + webhooks</li>
+          <li>Dedicated CSM</li>
+        </ul>
+        <button class="cta" onclick="window.location='auth.html?mode=signup&plan=scale'">Talk to sales</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="faq">
+    <div class="faq-head">
+      <div class="eyebrow">f.a.q.</div>
+      <h2>Questions before <em>you send the deck.</em></h2>
+    </div>
+    <details class="faq-item">
+      <summary>How is Tellar different from DocSend + Loom + ChatGPT?</summary>
+      <p>Those are three tools that don't know about each other. <em>DocSend</em> logs views but can't talk. <em>Loom</em> has narration but no analytics. <em>ChatGPT</em> can answer but doesn't know your deck. Tellar is the three, <em>on the same object</em>: every slide is a document, a video, and a conversation — and every event flows into the same analytics.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Can my agent hallucinate or leak data it shouldn't?</summary>
+      <p>No — and we take that seriously. The agent is <em>grounded</em> on your slides, your narration transcripts, and the KB you attach. If the answer isn't there, it refuses politely and offers to ping you. Every answer shows the exact slide or page it came from.</p>
+    </details>
+    <details class="faq-item">
+      <summary>What happens to a shared link if I realize I made a mistake?</summary>
+      <p>Revoke it. From the dashboard or <em>viewer settings</em>, any link can be expired, passphrase-protected, or replaced — retroactively. Viewers who had it open mid-session get bumped on the next slide.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Do you support SSO, SCIM, and compliance docs?</summary>
+      <p>Yes — on the Scale plan. SOC 2 Type II in progress (Q3 2026). Okta, Azure AD, Google Workspace OIDC. DPA and custom MSA on request.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Can viewers download the deck as a PDF?</summary>
+      <p>Only if you turn it on. By default, no: shared tellars play in the browser with the watermark stamped across every slide. You can enable PDF export per share.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Is there a free trial for Pro?</summary>
+      <p>14 days, no card. If you love it, we ask for payment on day 15. If you don't, your tellars stay — they just drop to Hobby limits.</p>
+    </details>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <h2>Send a deck that <em>knows</em> where it loses them.</h2>
+    <p>Or keep firing PDFs into the void. Your call.</p>
+    <div class="cta-actions">
+      <a href="auth.html?mode=signup" class="btn-hero">Start free — 2 minutes
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6h10M7 2l4 4-4 4"/></svg>
+      </a>
+      <a href="viewer.html" class="btn-hero-ghost">See a real one first</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">tellar</div>
+        <p class="foot-motto">Presentations that know when they lose you. Built in Buenos Aires, with love, for founders who ship.</p>
+      </div>
+      <div class="foot-col">
+        <h5>Product</h5>
+        <a href="#how">How it works</a>
+        <a href="#product">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="viewer.html">Live demo</a>
+      </div>
+      <div class="foot-col">
+        <h5>Studio</h5>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="editor.html">Editor</a>
+        <a href="share.html">Share</a>
+        <a href="settings.html">Settings</a>
+      </div>
+      <div class="foot-col">
+        <h5>Company</h5>
+        <a href="#">About</a>
+        <a href="#">Changelog</a>
+        <a href="#">Security</a>
+        <a href="mailto:hello@tellar.studio">hello@tellar.studio</a>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <span>© 2026 Tellar — rev 14.04.26</span>
+      <span>Buenos Aires · San Francisco · remote-first</span>
+    </div>
+  </footer>
+
+</main>
+
+<div class="nav-dock">
+  <span class="dock-brand">tellar demo</span>
+  <a href="home.html" class="active">home</a>
+  <a href="auth.html">auth</a>
+  <a href="dashboard.html">dashboard</a>
+  <a href="editor.html">editor</a>
+  <a href="share.html">share</a>
+  <a href="viewer.html">viewer</a>
+  <a href="settings.html">settings</a>
+<a href="handoff.html">handoff</a>
+</div>
+
+</body>
+</html>

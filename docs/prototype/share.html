@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tellar — Share settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .shell{position:relative;z-index:3;padding:32px 28px 120px;max-width:1200px;margin:0 auto}
+  .share-head{margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--ink-3);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+  .eyebrow::before{content:'';width:22px;height:1px;background:var(--accent)}
+  .share-head h1{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.05;letter-spacing:-.025em;margin-bottom:10px}
+  .share-head h1 em{font-style:italic;color:var(--accent);font-weight:300}
+  .share-head p{color:var(--ink-2);font-size:15px;max-width:600px;line-height:1.55}
+  .share-head p em{font-family:var(--serif);font-style:italic;color:var(--ink)}
+  .share-grid{display:grid;grid-template-columns:1fr 380px;gap:28px}
+
+  .url-panel{background:var(--panel);border:1px solid var(--line);padding:0;margin-bottom:24px;position:relative;overflow:hidden}
+  .url-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.5}
+  .url-row{display:flex;align-items:center;padding:20px 22px;gap:16px}
+  .url-label{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;flex-shrink:0}
+  .url-box{flex:1;display:flex;align-items:center;gap:10px;border:1px solid var(--line-2);padding:10px 14px;background:var(--bg-2);font-family:var(--mono);font-size:13px;color:var(--ink);overflow:hidden}
+  .url-box .dom{color:var(--ink-3)}
+  .url-box .slug{color:var(--accent)}
+  .url-copy{padding:10px 16px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;border-radius:2px;display:inline-flex;align-items:center;gap:6px}
+  .url-copy:hover{border-color:var(--accent);color:var(--accent)}
+  .url-copy.copied{border-color:var(--good);color:var(--good)}
+  .url-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-top:1px solid var(--line);background:var(--bg-2);font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase}
+  .url-footer b{color:var(--ink)}
+
+  .section{border:1px solid var(--line);background:var(--panel);padding:22px;margin-bottom:20px;position:relative}
+  .section-title{font-family:var(--serif);font-size:17px;font-weight:500;letter-spacing:-.01em;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+  .section-title .num{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.2em;font-weight:400}
+  .section-desc{font-size:13px;color:var(--ink-2);margin-bottom:16px;font-family:var(--serif);font-style:italic;line-height:1.5}
+
+  .access-modes{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .access-mode{padding:14px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer;transition:all .2s;position:relative}
+  .access-mode:hover{border-color:var(--line-2)}
+  .access-mode.sel{border-color:var(--accent);background:rgba(244,185,66,.04)}
+  .access-mode.sel::after{content:'';position:absolute;top:12px;right:12px;width:14px;height:14px;border-radius:50%;background:var(--accent)}
+  .access-mode.sel::before{content:'';position:absolute;top:16px;right:16px;width:6px;height:6px;border-left:1.5px solid #0c0d0f;border-bottom:1.5px solid #0c0d0f;transform:rotate(-45deg);z-index:1}
+  .am-name{font-family:var(--serif);font-size:14px;font-weight:500;margin-bottom:4px}
+  .am-name em{font-style:italic}
+  .am-desc{font-size:12px;color:var(--ink-2);line-height:1.5}
+  .am-icon{color:var(--ink-3);margin-bottom:8px}
+  .access-mode.sel .am-icon{color:var(--accent)}
+
+  .chip-list{display:flex;flex-wrap:wrap;gap:6px;padding:10px;border:1px solid var(--line-2);background:var(--bg-2);min-height:50px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:5px 8px 5px 10px;background:var(--panel);border:1px solid var(--line-2);font-family:var(--mono);font-size:11px;color:var(--ink)}
+  .chip.invite{color:var(--accent);border-color:rgba(244,185,66,.3)}
+  .chip-x{color:var(--ink-3);cursor:pointer;transition:color .2s;font-size:14px;line-height:1}
+  .chip-x:hover{color:var(--bad)}
+  .chip-input{background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--mono);font-size:11px;min-width:140px}
+  .chip-input::placeholder{color:var(--ink-3);font-style:italic;font-family:var(--serif)}
+
+  .perm-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px dashed var(--line)}
+  .perm-row:last-child{border-bottom:none}
+  .perm-info{flex:1}
+  .perm-name{font-size:13px;font-weight:500;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+  .perm-name .badge{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--accent);padding:1px 6px;background:rgba(244,185,66,.08);border:1px solid rgba(244,185,66,.25);text-transform:uppercase;border-radius:2px}
+  .perm-desc{font-size:12px;color:var(--ink-3);font-family:var(--serif);font-style:italic;line-height:1.5}
+
+  .preview-card{background:var(--panel);border:1px solid var(--line);padding:18px;margin-bottom:20px}
+  .preview-frame{aspect-ratio:16/10;background:linear-gradient(135deg,#1a1c21,#0f1014);position:relative;overflow:hidden;margin-bottom:14px;border:1px solid var(--line)}
+  .preview-frame::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);background-size:24px 24px}
+  .pf-slide{position:absolute;inset:12%;background:#f6f3ed;color:#1a1a1a;padding:14px;display:flex;flex-direction:column;justify-content:space-between}
+  .pf-slide .pf-eye{font-family:var(--mono);font-size:7px;color:#888;letter-spacing:.2em;text-transform:uppercase}
+  .pf-slide .pf-t{font-family:var(--serif);font-size:18px;line-height:1.05;letter-spacing:-.01em}
+  .pf-slide .pf-t em{font-style:italic;color:#c89a3a}
+  .pf-lock{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;background:rgba(12,13,15,.92);backdrop-filter:blur(12px);padding:12px 18px;border:1px solid var(--accent);text-align:center}
+  .pf-lock svg{color:var(--accent);margin-bottom:6px}
+  .pf-lock .t{font-family:var(--serif);font-size:12px;font-style:italic}
+  .pf-lock .s{font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:.1em;margin-top:2px;text-transform:uppercase}
+  .preview-meta{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase;display:flex;justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)}
+  .preview-meta b{color:var(--ink)}
+
+  .invitee{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .invitee:last-child{border-bottom:none}
+  .inv-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:12px;font-weight:500;flex-shrink:0}
+  .inv-info{flex:1;min-width:0}
+  .inv-name{font-size:13px;font-weight:500}
+  .inv-email{font-family:var(--mono);font-size:10px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .inv-status{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border:1px solid var(--line);border-radius:2px;color:var(--ink-2)}
+  .inv-status.active{color:var(--good);border-color:rgba(140,200,140,.3);background:rgba(140,200,140,.05)}
+  .inv-status.pend{color:var(--accent);border-color:rgba(244,185,66,.3);background:rgba(244,185,66,.05)}
+  .section-head-inline{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+  .section-head-inline h3{font-family:var(--serif);font-size:15px;font-weight:500}
+  .section-head-inline .aux{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.12em;text-transform:uppercase}
+
+  .adv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .date-input{background:var(--bg-2);border:1px solid var(--line-2);padding:10px 12px;color:var(--ink);font-family:var(--mono);font-size:12px;width:100%;border-radius:2px}
+
+  .save-bar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:14px;padding:10px 14px 10px 20px;background:rgba(12,13,15,.95);backdrop-filter:blur(14px);border:1px solid var(--line-2);border-radius:40px;box-shadow:0 10px 40px rgba(0,0,0,.6);font-family:var(--mono);font-size:11px;color:var(--ink-2);letter-spacing:.05em;opacity:0;transition:opacity .3s}
+  .save-bar.show{opacity:1}
+  .save-bar em{font-family:var(--serif);font-style:italic;color:var(--ink)}
+
+  @media (max-width:960px){.share-grid{grid-template-columns:1fr}.access-modes{grid-template-columns:1fr}.adv-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <a href="dashboard.html" class="brand-mark">tellar</a>
+    <div class="brand-tag">/ share</div>
+  </div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="topbar-right">
+    <a href="viewer.html" class="btn btn-sm btn-ghost">test as viewer</a>
+    <a href="editor.html" class="btn btn-sm btn-ghost">back to editor</a>
+    <div class="avatar" id="avatar">M</div>
+  </div>
+</div>
+
+<div class="shell">
+  <div class="share-head fade-in d1">
+    <div class="eyebrow" id="shareEyebrow">teller · loading…</div>
+    <h1>Share this <em>tellar.</em></h1>
+    <p>A link isn't just a link. Decide <em>who sees what</em>, whether the agent can answer, and what the viewer can take home with them.</p>
+  </div>
+
+  <div class="share-grid">
+    <div>
+      <div class="url-panel fade-in d2">
+        <div class="url-row">
+          <span class="url-label">link</span>
+          <div class="url-box">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M3.5 6h5M5 3.5L3 6l2 2.5M7 3.5L9 6 7 8.5"/></svg>
+            <span class="dom">tellar.to/</span><span class="slug" id="slugDisplay">—</span>
+          </div>
+          <button class="url-copy" id="copyBtn">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><path d="M3 7H2V1h6v1"/></svg>
+            copy
+          </button>
+        </div>
+        <div class="url-footer">
+          <span>opens · <b id="statOpens">—</b></span>
+          <span>expires · <b id="statExpires">—</b></span>
+          <span>status · <b id="statStatus" style="color:var(--good)">live</b></span>
+        </div>
+      </div>
+
+      <div class="section fade-in d3">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <h3 class="section-title"><span class="num">01</span>Who can open it</h3>
+        <p class="section-desc">Pick how strictly we check viewers before the first slide loads.</p>
+        <div class="access-modes" id="accessModes">
+          <div class="access-mode" data-mode="public"><div class="am-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="9" cy="9" r="7"/><path d="M2 9h14M9 2a12 12 0 010 14M9 2a12 12 0 000 14"/></svg></div><div class="am-name">Public link <em>— open</em></div><div class="am-desc">Anyone with the URL. Fastest, zero friction.</div></div>
+          <div class="access-mode" data-mode="email-gated"><div class="am-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 7h12v8H3z"/><path d="M6 7V5a3 3 0 016 0v2"/></svg></div><div class="am-name">Email-gated</div><div class="am-desc">Viewer types their email before the deck loads. You see who came.</div></div>
+          <div class="access-mode" data-mode="passphrase"><div class="am-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="7" width="12" height="8"/><path d="M9 11v2M7 11h4"/></svg></div><div class="am-name">Passphrase</div><div class="am-desc">A shared secret. Useful for a cohort or a roadshow.</div></div>
+          <div class="access-mode" data-mode="invite-only"><div class="am-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9 1v3M9 14v3M17 9h-3M4 9H1M14.7 3.3l-2.1 2.1M5.4 12.6l-2.1 2.1M14.7 14.7l-2.1-2.1M5.4 5.4L3.3 3.3"/><circle cx="9" cy="9" r="3"/></svg></div><div class="am-name">Invite only <em>— per-person</em></div><div class="am-desc">Each person gets their own magic link. No sharing.</div></div>
+        </div>
+
+        <div id="passphraseRow" style="display:none;margin-top:14px">
+          <label class="field-label">passphrase</label>
+          <input type="text" id="passphraseInput" class="field-input" placeholder="e.g. butter-knife-moon" style="max-width:300px"/>
+        </div>
+      </div>
+
+      <div class="section fade-in d4">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <h3 class="section-title"><span class="num">02</span>Allowed emails &amp; domains</h3>
+        <p class="section-desc">Anything outside this list gets a soft bounce. The agent will know why, too.</p>
+
+        <div class="field">
+          <label class="field-label">allowed domains</label>
+          <div class="chip-list" id="domainChips">
+            <input type="text" class="chip-input" id="domainInput" placeholder="+ add domain and press enter"/>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">specific invitees · per-person links</label>
+          <div class="chip-list" id="inviteeChips">
+            <input type="text" class="chip-input" id="inviteeInput" placeholder="+ add email and press enter"/>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:8px">
+          <label class="toggle">
+            <input type="checkbox" id="otpToggle"/><span class="toggle-sw"></span>
+            <span style="font-size:13px">Require one-time code sent to email</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="section fade-in d5">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <h3 class="section-title"><span class="num">03</span>What viewers can do</h3>
+        <p class="section-desc">Granular controls — turn them on when the context calls for it, off when it doesn't.</p>
+        <div id="permRows">
+          <div class="perm-row"><div class="perm-info"><div class="perm-name">Ask the agent <span class="badge">recommended</span></div><div class="perm-desc">The agent answers questions using the deck, recording, and your knowledge base.</div></div><label class="toggle"><input type="checkbox" data-perm="agent"/><span class="toggle-sw"></span></label></div>
+          <div class="perm-row"><div class="perm-info"><div class="perm-name">Watch the recording</div><div class="perm-desc">Play your narration over each slide, or let viewers read silently.</div></div><label class="toggle"><input type="checkbox" data-perm="recording"/><span class="toggle-sw"></span></label></div>
+          <div class="perm-row"><div class="perm-info"><div class="perm-name">Download a PDF</div><div class="perm-desc">A static export — no recording, no agent, no tracking past this point.</div></div><label class="toggle"><input type="checkbox" data-perm="download"/><span class="toggle-sw"></span></label></div>
+          <div class="perm-row"><div class="perm-info"><div class="perm-name">Re-share the link</div><div class="perm-desc">If off, forwards require a new invite from you.</div></div><label class="toggle"><input type="checkbox" data-perm="reshare"/><span class="toggle-sw"></span></label></div>
+          <div class="perm-row"><div class="perm-info"><div class="perm-name">Require NDA <span class="badge">pro</span></div><div class="perm-desc">Viewer e-signs before slide 1. You get a countersigned PDF.</div></div><label class="toggle"><input type="checkbox" data-perm="nda"/><span class="toggle-sw"></span></label></div>
+          <div class="perm-row"><div class="perm-info"><div class="perm-name">Show viewer watermark</div><div class="perm-desc">Overlays their email across every slide, faintly. Discourages screenshots.</div></div><label class="toggle"><input type="checkbox" data-perm="watermark"/><span class="toggle-sw"></span></label></div>
+        </div>
+      </div>
+
+      <div class="section fade-in d6">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <h3 class="section-title"><span class="num">04</span>Expiration &amp; limits</h3>
+        <p class="section-desc">Because a pitch left open for six months is a pitch that leaks.</p>
+        <div class="adv-grid">
+          <div>
+            <label class="field-label">link expires on</label>
+            <input type="date" class="date-input" id="expiresInput"/>
+          </div>
+          <div>
+            <label class="field-label">max opens per invite</label>
+            <input type="number" class="date-input" id="maxOpensInput" min="1" max="99"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="preview-card fade-in d3">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-3);text-transform:uppercase;margin-bottom:12px">what a viewer sees</div>
+        <div class="preview-frame">
+          <div class="pf-slide">
+            <span class="pf-eye">q2 pitch · tellar</span>
+            <div class="pf-t">A <em>$34B</em><br/>market<br/>growing 28%.</div>
+            <span class="pf-eye" id="pfEmail" style="opacity:.4">viewer@example.com</span>
+          </div>
+          <div class="pf-lock" id="pfLock">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="9" width="12" height="8"/><path d="M7 9V6a3 3 0 016 0v3"/></svg>
+            <div class="t" id="pfLockTitle">email required</div>
+            <div class="s" id="pfLockSub">one-time code</div>
+          </div>
+        </div>
+        <div class="preview-meta">
+          <span>mode · <b id="pfMode">—</b></span>
+          <span><b id="pfExpires">—</b> left</span>
+        </div>
+      </div>
+
+      <div class="section" style="margin-bottom:20px">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="section-head-inline">
+          <h3>Invitees</h3>
+          <span class="aux" id="inviteeStats">—</span>
+        </div>
+        <div id="inviteeList"></div>
+      </div>
+
+      <div class="section" style="border-color:rgba(212,122,122,.2)">
+        <div class="section-head-inline">
+          <h3 style="color:var(--bad)">Revoke access</h3>
+        </div>
+        <p style="font-size:12px;color:var(--ink-2);font-family:var(--serif);font-style:italic;line-height:1.5;margin-bottom:14px">
+          Instantly invalidates all open links. Anyone mid-view gets kicked out on the next slide.
+        </p>
+        <button class="btn" id="revokeBtn" style="width:100%;justify-content:center;border-color:rgba(212,122,122,.4);color:var(--bad)">Revoke all access</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="save-bar" id="saveBar">
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--good)" stroke-width="1.5"><path d="M1.5 5l2.5 2.5L9 2"/></svg>
+  changes saved · <em>live for invitees</em>
+</div>
+
+<div class="nav-dock">
+  <span class="dock-brand">tellar demo</span>
+  <a href="home.html">home</a>
+  <a href="auth.html">auth</a>
+  <a href="dashboard.html">dashboard</a>
+  <a href="editor.html">editor</a>
+  <a href="share.html" class="active">share</a>
+  <a href="viewer.html">viewer</a>
+<a href="settings.html">settings</a>
+  <a href="handoff.html">handoff</a>
+</div>
+
+<script src="api.js"></script>
+<script src="tellar-ui.js"></script>
+<script>
+if (!TellarAPI.requireSession()) { }
+
+const _urlT = new URLSearchParams(location.search).get('teller');
+const _lsT = localStorage.getItem('currentTellerId');
+const _sess = TellarAPI.session();
+const TELLER = (_urlT && TellarAPI.getTeller(_urlT)) ? _urlT
+             : (_lsT && TellarAPI.getTeller(_lsT)) ? _lsT
+             : (TellarAPI.getTeller('tlr_q2pitch') ? 'tlr_q2pitch'
+             : TellarAPI.listTellers(_sess?.workspaceId || '')[0]?.id);
+if (TELLER) localStorage.setItem('currentTellerId', TELLER);
+const session = TellarAPI.session();
+if (session && window.TellarUI){
+  TellarUI.mountCrumbsSwitcher({
+    container: '#crumbs', current: TELLER, after: 'share',
+    onSwitch: id => {
+      localStorage.setItem('currentTellerId', id);
+      const u = new URL(location.href); u.searchParams.set('teller', id);
+      location.href = u.toString();
+    }
+  });
+  TellarUI.mountAvatarMenu({ host: '#avatar' });
+}
+
+let share = TellarAPI.getShare(TELLER);
+if (!share){ share = TellarAPI.updateShare(TELLER, {}) || {id:'shr_new', slug:'qa09fx2', tellerId:TELLER, accessMode:'email-gated', allowedDomains:[], invitees:[], permissions:{agent:true,recording:true,download:false,reshare:false,nda:false,watermark:true}, expiresAt: Date.now()+1000*60*60*24*14, opens:0}; }
+
+function render(){
+  const _t = TellarAPI.getTeller(TELLER);
+  document.getElementById('shareEyebrow').textContent = `teller · ${_t?.title || '—'}`;
+  document.getElementById('slugDisplay').textContent = share.slug;
+  document.getElementById('statOpens').textContent = (share.opens || 0) + ' opens';
+  const ms = (share.expiresAt || 0) - Date.now();
+  const days = Math.max(0, Math.round(ms / 86400000));
+  document.getElementById('statExpires').textContent = share.revoked ? 'revoked' : (days + ' days');
+  document.getElementById('statStatus').textContent = share.revoked ? 'revoked' : 'live';
+  document.getElementById('statStatus').style.color = share.revoked ? 'var(--bad)' : 'var(--good)';
+
+  document.querySelectorAll('.access-mode').forEach(m => m.classList.toggle('sel', m.dataset.mode === share.accessMode));
+
+  document.getElementById('passphraseRow').style.display = share.accessMode === 'passphrase' ? 'block' : 'none';
+  document.getElementById('passphraseInput').value = share.passphrase || '';
+
+  // chips
+  renderChips('domainChips', 'domainInput', share.allowedDomains || [], 'chip', '@');
+  renderChips('inviteeChips', 'inviteeInput', (share.invitees || []).map(i => i.email), 'chip invite', '');
+
+  document.getElementById('otpToggle').checked = !!share.requireOtp;
+  const perms = share.permissions || {};
+  document.querySelectorAll('[data-perm]').forEach(el => { el.checked = !!perms[el.dataset.perm]; });
+
+  // expiration
+  if (share.expiresAt){
+    const d = new Date(share.expiresAt);
+    document.getElementById('expiresInput').value = d.toISOString().slice(0,10);
+  }
+  document.getElementById('maxOpensInput').value = share.maxOpens || 5;
+
+  // preview card
+  document.getElementById('pfMode').textContent = share.accessMode;
+  document.getElementById('pfExpires').textContent = share.revoked ? 'revoked' : (days + 'd');
+  const firstInvitee = (share.invitees || [])[0];
+  document.getElementById('pfEmail').textContent = firstInvitee ? firstInvitee.email : 'viewer@example.com';
+  const lock = document.getElementById('pfLock');
+  if (share.accessMode === 'public'){ lock.style.display = 'none'; }
+  else { lock.style.display = 'block'; }
+  const lockLabels = {
+    'email-gated': ['email required', 'one-time code'],
+    'passphrase': ['passphrase required', 'shared secret'],
+    'invite-only': ['invite only', 'per-person link']
+  };
+  const [t, s] = lockLabels[share.accessMode] || ['', ''];
+  document.getElementById('pfLockTitle').textContent = t;
+  document.getElementById('pfLockSub').textContent = s;
+
+  // invitee list (right column)
+  const list = document.getElementById('inviteeList');
+  const invs = share.invitees || [];
+  const colors = [['#2a3a4e','#9fb8d4'],['#4e2a3a','#d49fb8'],['#3a4e2a','#b8d49f'],['#4e3a2a','#d4b89f']];
+  list.innerHTML = invs.length ? invs.map((i, idx) => {
+    const [bg, fg] = colors[idx % colors.length];
+    const init = (i.name || i.email).charAt(0).toUpperCase();
+    return `<div class="invitee">
+      <div class="inv-avatar" style="background:${bg};color:${fg}">${init}</div>
+      <div class="inv-info"><div class="inv-name">${i.name || i.email.split('@')[0]}</div><div class="inv-email">${i.email}</div></div>
+      <span class="inv-status ${i.status === 'pending' ? 'pend' : 'active'}">${i.status === 'pending' ? 'not yet' : 'opened ' + (i.opens||0) + '×'}</span>
+    </div>`;
+  }).join('') : '<div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);padding:12px 0">No invitees yet. Add emails above.</div>';
+  const active = invs.filter(i => i.status !== 'pending').length;
+  document.getElementById('inviteeStats').textContent = `${active} active · ${invs.length - active} pending`;
+}
+
+function renderChips(hostId, inputId, items, chipClass, prefix){
+  const host = document.getElementById(hostId);
+  const input = document.getElementById(inputId);
+  // clear chips (preserve input)
+  [...host.querySelectorAll('.chip')].forEach(c => c.remove());
+  items.forEach(item => {
+    const chip = document.createElement('span');
+    chip.className = chipClass;
+    chip.innerHTML = `${prefix}${item} <span class="chip-x">×</span>`;
+    chip.querySelector('.chip-x').onclick = e => { e.stopPropagation(); removeChip(hostId, item); };
+    host.insertBefore(chip, input);
+  });
+}
+
+function saveAndRender(patch){
+  share = TellarAPI.updateShare(TELLER, patch);
+  render();
+  flashSave();
+}
+
+function flashSave(){
+  const bar = document.getElementById('saveBar');
+  bar.classList.add('show');
+  clearTimeout(bar._t);
+  bar._t = setTimeout(() => bar.classList.remove('show'), 1800);
+}
+
+document.getElementById('accessModes').addEventListener('click', e => {
+  const mode = e.target.closest('.access-mode'); if (!mode) return;
+  saveAndRender({accessMode: mode.dataset.mode});
+});
+
+document.getElementById('passphraseInput').addEventListener('change', e => {
+  saveAndRender({passphrase: e.target.value});
+});
+
+document.getElementById('domainInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    let v = e.target.value.trim().replace(/^@/, '');
+    if (!v) return;
+    const domains = [...(share.allowedDomains || []), v];
+    e.target.value = '';
+    saveAndRender({allowedDomains: [...new Set(domains)]});
+  }
+});
+
+document.getElementById('inviteeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    const v = e.target.value.trim();
+    if (!v || !v.includes('@')) return;
+    const invitees = [...(share.invitees || []), {email:v, name:v.split('@')[0], status:'pending', opens:0, addedAt:Date.now()}];
+    e.target.value = '';
+    saveAndRender({invitees});
+  }
+});
+
+function removeChip(hostId, value){
+  if (hostId === 'domainChips'){
+    saveAndRender({allowedDomains: (share.allowedDomains || []).filter(d => d !== value)});
+  } else {
+    saveAndRender({invitees: (share.invitees || []).filter(i => i.email !== value)});
+  }
+}
+
+document.getElementById('otpToggle').addEventListener('change', e => saveAndRender({requireOtp: e.target.checked}));
+
+document.querySelectorAll('[data-perm]').forEach(el => {
+  el.addEventListener('change', () => {
+    const perms = {...(share.permissions || {})};
+    perms[el.dataset.perm] = el.checked;
+    saveAndRender({permissions: perms});
+  });
+});
+
+document.getElementById('expiresInput').addEventListener('change', e => {
+  const d = new Date(e.target.value);
+  d.setHours(23, 59, 59, 999);
+  saveAndRender({expiresAt: d.getTime()});
+});
+document.getElementById('maxOpensInput').addEventListener('change', e => saveAndRender({maxOpens: parseInt(e.target.value, 10) || 5}));
+
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const url = `${location.origin}${location.pathname.replace(/share\.html$/, 'viewer.html')}?s=${share.slug}`;
+  try{ await navigator.clipboard.writeText(url); }catch(e){}
+  const b = document.getElementById('copyBtn');
+  b.classList.add('copied');
+  b.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg> copied';
+  setTimeout(() => { b.classList.remove('copied'); b.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><path d="M3 7H2V1h6v1"/></svg> copy'; }, 1800);
+});
+
+document.getElementById('revokeBtn').addEventListener('click', () => {
+  if (!confirm('Revoke all access? Viewers mid-session will be kicked out.')) return;
+  TellarAPI.revokeShare(TELLER);
+  share = TellarAPI.getShare(TELLER);
+  render();
+  flashSave();
+});
+
+render();
+</script>
+</body>
+</html>
