@@ -5,7 +5,6 @@ version: '3.9'
 services:
   mysql:
     image: mysql:8
-    command: --default-authentication-plugin=caching_sha2_password
     environment:
       MYSQL_ROOT_PASSWORD: tellar
       MYSQL_DATABASE: tellar
