@@ -11,6 +11,7 @@ apps/api/prisma/dev.db*
 uploads/
 # CDK
 infra/cdk.out
-infra/*.tsbuildinfo
 # Fumadocs generated
 apps/web/.source
+# TypeScript incremental build artifacts
+*.tsbuildinfo
