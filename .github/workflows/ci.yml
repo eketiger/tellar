@@ -52,9 +52,9 @@ jobs:
       - name: Typecheck backend
         run: pnpm --filter @tellar/api lint
       - name: Test backend with coverage
-        run: pnpm --filter @tellar/api test:cov -- --passWithNoTests
+        run: pnpm --filter @tellar/api test:cov
       - name: Test frontend
-        run: pnpm --filter @tellar/web test -- --passWithNoTests
+        run: pnpm --filter @tellar/web test
       - name: Build backend
         run: pnpm --filter @tellar/api build
       - name: Build frontend

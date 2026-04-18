@@ -11,8 +11,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:reindex": "tsx scripts/reindex.ts",
-    "test": "jest",
-    "test:cov": "jest --coverage",
+    "test": "jest --passWithNoTests",
+    "test:cov": "jest --coverage --passWithNoTests",
     "lint": "tsc --noEmit",
     "prisma": "prisma"
   },
