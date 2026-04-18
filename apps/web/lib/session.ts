@@ -8,8 +8,16 @@ export async function getSession() {
     .map(c => `${c.name}=${c.value}`)
     .join('; ');
   return apiServer<{
-    user: { id: string; email: string; name: string };
+    user: { id: string; email: string; name: string; role?: 'USER' | 'ADMIN' };
     workspace: { id: string; name: string; slug: string; plan: string };
-    session: { userId: string; workspaceId: string; email: string; name: string; initials: string };
+    session: {
+      userId: string;
+      workspaceId: string;
+      email: string;
+      name: string;
+      initials: string;
+      role?: 'USER' | 'ADMIN';
+      isAdmin?: boolean;
+    };
   }>('/auth/me', cookieHeader);
 }

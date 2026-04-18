@@ -53,8 +53,6 @@ export default function HomePage() {
           <a href="#product">Product</a>
           <a href="#how">How it works</a>
           <a href="#pricing">Pricing</a>
-          <a href="/docs">Docs</a>
-          <a href="/help">Help</a>
           <a href="/api-reference">API</a>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>

@@ -126,7 +126,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
       {/* Right panel: narration + KB */}
       <aside style={{ borderLeft: '1px solid var(--line)', padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <NarrationPanel teller={teller} active={active} onUpdate={patch => active && save(active.id, patch)} />
+        <NarrationPanel teller={teller} active={active} onUpdate={(patch: Partial<Slide>) => active && save(active.id, patch)} />
         <KBPanel tellerId={teller.id} initial={teller.kbSources} />
       </aside>
     </main>

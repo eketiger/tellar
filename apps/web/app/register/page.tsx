@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
-import { AuthShell } from '../login/page';
+import { AuthShell } from '@/components/AuthShell';
 
 export default function RegisterPage() {
   const router = useRouter();
