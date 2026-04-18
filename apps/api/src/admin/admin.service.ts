@@ -59,13 +59,11 @@ export class AdminService {
   }
 
   async listAccounts(q?: string, page = 1) {
+    // MySQL/PlanetScale default collations (utf8mb4_0900_ai_ci / utf8mb4_unicode_ci)
+    // are already case-insensitive for LIKE, so we don't pass `mode: 'insensitive'`
+    // (which is a Postgres-only feature).
     const where = q
-      ? {
-          OR: [
-            { email: { contains: q, mode: 'insensitive' as const } },
-            { name: { contains: q, mode: 'insensitive' as const } },
-          ],
-        }
+      ? { OR: [{ email: { contains: q } }, { name: { contains: q } }] }
       : {};
     const take = 25;
     const [items, total] = await Promise.all([

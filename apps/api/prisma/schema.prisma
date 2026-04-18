@@ -1,15 +1,18 @@
-// Tellar — Prisma schema (per handoff §04)
-// For Postgres + pgvector set provider="postgresql" and keep the KBChunk.embedding Unsupported
-// For a zero-infra dev start, swap provider="sqlite", DATABASE_URL="file:./dev.db",
-// and comment out the `embedding` field — the agent falls back to keyword search.
+// Tellar — Prisma schema (PlanetScale / MySQL)
+// PlanetScale does not support real foreign keys, so relationMode="prisma"
+// emulates them in the client — which requires an index on every FK column.
+// For local development you can point DATABASE_URL at a local MySQL 8 instance
+// (see docker-compose.yml) or use `pscale connect` to tunnel into a PlanetScale
+// dev branch.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 enum AuthProvider {
@@ -23,6 +26,11 @@ enum Role {
   ADMIN
   EDITOR
   VIEWER
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 enum Plan {
@@ -48,15 +56,15 @@ enum EventType {
 }
 
 model User {
-  id                    String       @id @default(cuid())
-  email                 String       @unique
+  id                    String         @id @default(cuid())
+  email                 String         @unique
   name                  String
   passwordHash          String?
-  provider              AuthProvider @default(EMAIL)
+  provider              AuthProvider   @default(EMAIL)
   providerId            String?
   avatarUrl             String?
-  role                  UserRole     @default(USER)
-  isSuspended           Boolean      @default(false)
+  role                  UserRole       @default(USER)
+  isSuspended           Boolean        @default(false)
   lastLoginAt           DateTime?
   // GDPR
   gdprConsentAt         DateTime?
@@ -64,20 +72,15 @@ model User {
   dataExportRequestedAt DateTime?
   deletionRequestedAt   DateTime?
   // Stripe
-  stripeCustomerId      String?      @unique
-  createdAt             DateTime     @default(now())
+  stripeCustomerId      String?        @unique
+  createdAt             DateTime       @default(now())
   memberships           Membership[]
   sessions              Session[]
-  ownedWorkspaces       Workspace[]  @relation("owner")
+  ownedWorkspaces       Workspace[]    @relation("owner")
   subscriptions         Subscription[]
   invoices              Invoice[]
   copilotUsages         CopilotUsage[]
   askUsages             AskUsage[]
-}
-
-enum UserRole {
-  USER
-  ADMIN
 }
 
 model Workspace {
@@ -93,12 +96,14 @@ model Workspace {
   tellers   Teller[]
   usage     Usage?
   billing   Billing?
+
+  @@index([ownerId])
 }
 
 model Membership {
   id          String    @id @default(cuid())
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
   userId      String?
   user        User?     @relation(fields: [userId], references: [id])
   email       String
@@ -107,16 +112,17 @@ model Membership {
   joinedAt    DateTime  @default(now())
 
   @@unique([workspaceId, email])
+  @@index([userId])
 }
 
 model Teller {
-  id          String      @id @default(cuid())
-  workspaceId String
-  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  ownerId     String
-  title       String
-  theme       String      @default("editorial-cream")
-  revision    Int         @default(1)
+  id           String      @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id])
+  ownerId      String
+  title        String
+  theme        String      @default("editorial-cream")
+  revision     Int         @default(1)
   deletedAt    DateTime?
   vectorizedAt DateTime?
   vectorStatus String?
@@ -124,23 +130,24 @@ model Teller {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   slides       Slide[]
-  shares      Share[]
-  kbSources   KBSource[]
-  recordings  Recording[]
-  events      Event[]
+  shares       Share[]
+  kbSources    KBSource[]
+  recordings   Recording[]
+  events       Event[]
 
   @@index([workspaceId, deletedAt])
+  @@index([ownerId])
 }
 
 model Slide {
   id       String  @id @default(cuid())
   tellerId String
-  teller   Teller  @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  teller   Teller  @relation(fields: [tellerId], references: [id])
   idx      Int
   eyebrow  String?
-  title    String
-  subtitle String?
-  notes    String?
+  title    String  @db.Text
+  subtitle String? @db.Text
+  notes    String? @db.Text
   layout   Json    @default("{}")
 
   @@unique([tellerId, idx])
@@ -149,10 +156,11 @@ model Slide {
 model Share {
   id             String     @id @default(cuid())
   tellerId       String
-  teller         Teller     @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  teller         Teller     @relation(fields: [tellerId], references: [id])
   slug           String     @unique
   accessMode     AccessMode @default(EMAIL_GATED)
-  allowedDomains String[]
+  // MySQL has no native string[] — store as JSON array.
+  allowedDomains Json       @default("[]")
   passphraseHash String?
   perms          Json       @default("{}")
   expiresAt      DateTime?
@@ -162,12 +170,14 @@ model Share {
   invitees       Invitee[]
   events         Event[]
   createdAt      DateTime   @default(now())
+
+  @@index([tellerId])
 }
 
 model Invitee {
   id       String    @id @default(cuid())
   shareId  String
-  share    Share     @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  share    Share     @relation(fields: [shareId], references: [id])
   email    String
   name     String?
   status   String    @default("pending")
@@ -180,21 +190,24 @@ model Invitee {
 model Recording {
   id         String   @id @default(cuid())
   tellerId   String
-  teller     Teller   @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  teller     Teller   @relation(fields: [tellerId], references: [id])
   slideId    String?
   mode       String
   durationMs Int
   sizeBytes  Int
   s3Key      String
-  transcript String?
+  transcript String?  @db.Text
   status     String   @default("uploading")
   createdAt  DateTime @default(now())
+
+  @@index([tellerId])
+  @@index([slideId])
 }
 
 model KBSource {
   id        String    @id @default(cuid())
   tellerId  String
-  teller    Teller    @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  teller    Teller    @relation(fields: [tellerId], references: [id])
   kind      String
   name      String
   bytes     Int?
@@ -202,15 +215,17 @@ model KBSource {
   indexed   Boolean   @default(false)
   chunks    KBChunk[]
   createdAt DateTime  @default(now())
+
+  @@index([tellerId])
 }
 
 model KBChunk {
-  id        String   @id @default(cuid())
-  sourceId  String
-  source    KBSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  page      Int?
-  text      String
-  // embedding Unsupported("vector(1536)")   // enable when pgvector is installed
+  id       String   @id @default(cuid())
+  sourceId String
+  source   KBSource @relation(fields: [sourceId], references: [id])
+  page     Int?
+  text     String   @db.Text
+
   @@index([sourceId])
 }
 
@@ -218,7 +233,7 @@ model Event {
   id        String    @id @default(cuid())
   type      EventType
   tellerId  String
-  teller    Teller    @relation(fields: [tellerId], references: [id], onDelete: Cascade)
+  teller    Teller    @relation(fields: [tellerId], references: [id])
   shareId   String?
   share     Share?    @relation(fields: [shareId], references: [id])
   sessionId String
@@ -234,7 +249,7 @@ model Event {
 
 model Usage {
   workspaceId      String    @id
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace        Workspace @relation(fields: [workspaceId], references: [id])
   month            String
   agentQueries     Int       @default(0)
   recordingMinutes Int       @default(0)
@@ -243,7 +258,7 @@ model Usage {
 
 model Billing {
   workspaceId      String    @id
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace        Workspace @relation(fields: [workspaceId], references: [id])
   stripeCustomerId String?
   plan             Plan      @default(FREE)
   subscriptionId   String?
@@ -253,18 +268,20 @@ model Billing {
 model Session {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
   token     String   @unique
   expiresAt DateTime
   userAgent String?
   ip        String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Subscription {
   id                   String    @id @default(cuid())
   userId               String
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User      @relation(fields: [userId], references: [id])
   stripeSubscriptionId String    @unique
   stripePriceId        String
   status               String
@@ -282,7 +299,7 @@ model Subscription {
 model Invoice {
   id              String   @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id])
   stripeInvoiceId String   @unique
   amountPaid      Int
   currency        String
@@ -296,7 +313,7 @@ model Invoice {
 model CopilotUsage {
   id     String @id @default(cuid())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
   date   String
   count  Int    @default(0)
 
@@ -307,7 +324,7 @@ model CopilotUsage {
 model AskUsage {
   id       String @id @default(cuid())
   userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id])
   tellerId String
   date     String
   count    Int    @default(0)
@@ -320,8 +337,8 @@ model TellerAsk {
   id        String   @id @default(cuid())
   tellerId  String
   userId    String
-  question  String
-  answer    String
+  question  String   @db.Text
+  answer    String   @db.Text
   createdAt DateTime @default(now())
 
   @@index([tellerId])
@@ -329,12 +346,12 @@ model TellerAsk {
 }
 
 model CookieConsent {
-  id        String   @id @default(cuid())
-  userId    String?
-  ipHash    String?
-  version   String
-  accepted  Boolean
-  at        DateTime @default(now())
+  id       String   @id @default(cuid())
+  userId   String?
+  ipHash   String?
+  version  String
+  accepted Boolean
+  at       DateTime @default(now())
 
   @@index([userId])
 }

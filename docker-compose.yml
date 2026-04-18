@@ -1,17 +1,27 @@
+# Local dev infrastructure. In production the database is PlanetScale — you do
+# not need this file. It exists so contributors can work offline or without a
+# PlanetScale account.
 version: '3.9'
 services:
-  postgres:
-    image: postgres:16-alpine
+  mysql:
+    image: mysql:8
+    command: --default-authentication-plugin=caching_sha2_password
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: tellar
-    ports: ['5432:5432']
-    volumes: ['pgdata:/var/lib/postgresql/data']
+      MYSQL_ROOT_PASSWORD: tellar
+      MYSQL_DATABASE: tellar
+      MYSQL_USER: tellar
+      MYSQL_PASSWORD: tellar
+    ports: ['3306:3306']
+    volumes: ['mysqldata:/var/lib/mysql']
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-utellar', '-ptellar']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
     ports: ['6379:6379']
 
 volumes:
-  pgdata:
+  mysqldata:

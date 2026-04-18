@@ -59,7 +59,7 @@ After `cdk deploy --all`, Secrets Manager holds empty placeholders. Populate the
 ```bash
 aws secretsmanager put-secret-value \
   --secret-id /tellar/production/database-url \
-  --secret-string 'postgresql://...'
+  --secret-string 'mysql://USER:PASS@aws.connect.psdb.cloud/tellar?sslaccept=strict'
 ```
 
 Full list: `database-url`, `jwt-secret`, `share-token-secret`, `google-client-secret`,

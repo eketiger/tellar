@@ -10,10 +10,12 @@
   - `apps/web` — **Next.js 15** App Router. Uses `next.config.mjs` rewrites to proxy
     `/api/*` → NestJS during dev.
 - **Shared types** — `packages/api-types` (Zod). Import from `@tellar/api-types`.
-- **Database** — **Postgres 16 + Prisma 6**. Handoff §04 mandates Postgres + pgvector
-  so the agent can do RAG. A PlanetScale/MySQL swap would lose pgvector and the
-  RAG pipeline — if a future session needs MySQL, migrate the embedding store to
-  Pinecone first (Section 10 of the original spec) and keep Prisma `mysql` provider.
+- **Database** — **PlanetScale (MySQL) + Prisma 6** with `relationMode = "prisma"`.
+  No foreign-key constraints at the DB level — every relation column must carry
+  `@@index(...)`. Schema changes ship via `prisma db push` on a PlanetScale dev
+  branch, then promoted with a PlanetScale deploy request; no `prisma migrate`.
+  Vectors live in **Pinecone** (+ keyword-search fallback) — we never depended on
+  pgvector.
 - **Auth** — argon2-hashed passwords, httpOnly JWT cookie (`tellar_jwt`), symmetric
   JWT by default. Viewer gate mints a short-lived `x-share-token` header. We do
   NOT use NextAuth — the Next app is a client of the NestJS `/api/auth/*` endpoints
@@ -33,8 +35,8 @@ as one authoritative source of truth.
 ## Rules for Claude Code sessions
 
 - **Never regress architecture above** unless the user asks explicitly. If a spec
-  hints at a different stack (Next-only monolith, MySQL, NextAuth), translate it to
-  the monorepo architecture and call out the translation in chat.
+  hints at a different stack (Next-only monolith, Postgres, NextAuth), translate it
+  to the monorepo + PlanetScale architecture and call out the translation in chat.
 - **All mutating routes are behind** `JwtGuard + WorkspaceGuard` (tenant check). New
   controllers must use both. Admin-only routes additionally use `AdminGuard`.
 - **Use the shared Zod DTOs** from `@tellar/api-types` for all request bodies.

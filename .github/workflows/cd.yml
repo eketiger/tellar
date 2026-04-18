@@ -76,15 +76,15 @@ jobs:
           cluster: ${{ secrets.ECS_CLUSTER }}
           wait-for-service-stability: true
 
-      # --- DB migration ------------------------------------------------------
-      - name: Run Prisma migrate on ECS (one-off)
+      # --- DB schema push (PlanetScale: no migrations, just `db push`) ------
+      - name: Run Prisma db push on ECS (one-off)
         run: |
           aws ecs run-task \
             --cluster ${{ secrets.ECS_CLUSTER }} \
             --task-definition ${{ secrets.ECS_TASK_DEFINITION_MIGRATE }} \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_SUBNETS }}],securityGroups=[${{ secrets.ECS_SG }}],assignPublicIp=ENABLED}" \
-            --overrides '{"containerOverrides":[{"name":"${{ secrets.ECS_CONTAINER_NAME_API }}","command":["npx","prisma","migrate","deploy"]}]}'
+            --overrides '{"containerOverrides":[{"name":"${{ secrets.ECS_CONTAINER_NAME_API }}","command":["npx","prisma","db","push","--accept-data-loss"]}]}'
 
       - name: Notify Slack on failure
         if: failure()

@@ -102,7 +102,7 @@ export default function HomePage() {
               <div className="cref"><b>03</b> / Agent</div>
               <h3>A deck that <em>answers back.</em></h3>
               <p className="desc">RAG over slides, narration, and your KB. Strict citations. Claude Haiku cost per query under 2¢.</p>
-              <ul><li>Cites slides + KB</li><li>Claude + pgvector</li><li>Copilot for creators</li></ul>
+              <ul><li>Cites slides + KB</li><li>Claude + Pinecone</li><li>Copilot for creators</li></ul>
             </div>
           </div>
         </section>

@@ -7,22 +7,25 @@ Share decks that track per-slide drop-off, record narration, and answer viewer
 questions from your knowledge base.
 
 - **Frontend** — Next.js 15 (App Router, React 19, raw CSS tokens ported 1:1 from the prototype)
-- **Backend** — NestJS 11 + Prisma 6 + Postgres 16 (+ optional pgvector)
+- **Backend** — NestJS 11 + Prisma 6 + **PlanetScale (MySQL)**
 - **Realtime** — Socket.IO
 - **Agent RAG** — Claude + OpenAI embeddings + Pinecone (with a keyword-search fallback)
 - **Billing** — Stripe (Checkout + Portal + Webhooks)
 - **Analytics** — Mixpanel (gated by cookie consent)
 - **Admin** — full `/admin` backoffice (accounts, workspaces, billing, events)
 - **Auth** — argon2 + JWT cookie · Google & GitHub OAuth · degrades to mock when env unset
+- **Docs** — Fumadocs at `/docs` + `/help`; Scalar at `/api-reference`; OpenAPI 3.1 at `/openapi.yaml`
+- **Infra** — AWS CDK in `infra/` (VPC, ECR, ECS/Fargate, ALB, CloudFront, monitoring, OIDC IAM role)
 
 ## Monorepo
 
 ```
 apps/
-  api/     NestJS backend  (port 3333, global prefix /api)
-  web/     Next.js frontend (port 3000)
+  api/           NestJS backend  (port 3333, global prefix /api)
+  web/           Next.js frontend (port 3000)
 packages/
-  api-types/   Shared Zod DTOs
+  api-types/     Shared Zod DTOs
+infra/           AWS CDK v2 stacks
 ```
 
 ---
@@ -34,44 +37,61 @@ packages/
 pnpm install
 ```
 
-### 2. Start Postgres (and optional Redis)
+### 2. Start MySQL (and optional Redis)
+
+You have two options:
+
+**A. Local MySQL 8 via Docker** (works offline, no PlanetScale account needed)
 ```bash
-docker compose up -d postgres redis
+docker compose up -d mysql redis
 ```
-Or point `DATABASE_URL` at any existing Postgres.
+
+**B. PlanetScale dev branch** (recommended for team work)
+- Create a database on <https://planetscale.com>, then a `dev` branch.
+- `pscale connect tellar dev --port 3306` in one terminal to tunnel it locally.
+- Or grab the direct connection string from the PlanetScale console.
 
 ### 3. Configure env
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
-Edit each if needed. **All third-party keys are optional** — the app runs
-with zero external services; integrations activate as you add keys.
 
-### 4. Initialise the database
+Set `DATABASE_URL` to your MySQL connection string:
+- Local MySQL: `mysql://tellar:tellar@localhost:3306/tellar`
+- PlanetScale: `mysql://USER:PASS@aws.connect.psdb.cloud/tellar?sslaccept=strict`
+
+**All other third-party keys are optional** — the app runs with zero external
+services; integrations activate as you add keys (see table below).
+
+### 4. Push the schema & seed
 ```bash
-pnpm --filter @tellar/api prisma generate
-pnpm --filter @tellar/api prisma db push
+pnpm --filter @tellar/api db:generate
+pnpm --filter @tellar/api db:push
 pnpm --filter @tellar/api db:seed
 ```
+
+PlanetScale workflow note: we use `prisma db push` against a dev branch, never
+`prisma migrate`. Schema changes ship by merging a PlanetScale deploy request.
 
 ### 5. Boot everything
 ```bash
 pnpm dev
 ```
 
-- Web → <http://localhost:3000>
-- API → <http://localhost:3333/api>
-- WS  → ws://localhost:3333/ws
+| URL | Page |
+| --- | --- |
+| <http://localhost:3000> | Marketing home |
+| <http://localhost:3000/dashboard> | Studio (after login) |
+| <http://localhost:3000/admin> | Backoffice (admin-only) |
+| <http://localhost:3000/docs> | Product docs (Fumadocs) |
+| <http://localhost:3000/help> | Help center (Fumadocs) |
+| <http://localhost:3000/api-reference> | Interactive API reference (Scalar) |
+| <http://localhost:3000/openapi.yaml> | Raw OpenAPI 3.1 spec |
+| <http://localhost:3000/v/qa09fx2> | Seeded viewer demo |
+| <http://localhost:3333/api/health> | Backend health check |
 
-### 6. Log in as the demo admin
-Email `martin@tellar.studio` · password `demo1234`.
-This account is an admin, so you'll also see the **Backoffice** link in the avatar menu → <http://localhost:3000/admin>.
-
-### 7. See the viewer
-The seeded share is live at <http://localhost:3000/v/qa09fx2>.
-Enter any `@sequoiacap.com`, `@a16z.com`, `@indexventures.com` or `@accel.com`
-email to pass the gate.
+Demo login: `martin@tellar.studio` / `demo1234` (admin).
 
 ---
 
@@ -94,7 +114,7 @@ The admin API lives under `/api/admin/*` and is guarded by `JwtGuard + AdminGuar
 ## Environment variables cheat-sheet
 
 ### Required
-- `DATABASE_URL` — Postgres connection string
+- `DATABASE_URL` — PlanetScale or local MySQL connection string
 - `JWT_SECRET` — any random string
 
 ### Optional — turning on features
@@ -116,11 +136,13 @@ locally, OAuth creates a dev-only mock user, Mixpanel stays inert.
 ## Scripts
 
 ```bash
-pnpm dev                           # boot web + api in parallel
-pnpm --filter @tellar/api db:seed  # (re)seed demo data
-pnpm --filter @tellar/api db:reindex            # rebuild Pinecone index (no-op if unset)
-pnpm --filter @tellar/api test:cov              # jest with coverage
-docker compose up -d postgres redis             # infra
+pnpm dev                                    # boot web + api in parallel
+pnpm --filter @tellar/api db:push           # push schema to the current MySQL
+pnpm --filter @tellar/api db:generate       # regenerate Prisma client
+pnpm --filter @tellar/api db:studio         # Prisma Studio
+pnpm --filter @tellar/api db:seed           # (re)seed demo data
+pnpm --filter @tellar/api test:cov          # jest with coverage
+docker compose up -d mysql redis            # local infra
 ```
 
 ---
@@ -128,13 +150,11 @@ docker compose up -d postgres redis             # infra
 ## CI/CD
 
 - `.github/workflows/ci.yml` — on every push/PR: install, prisma generate, db push,
-  typecheck, test:cov, build both apps, upload coverage artifact.
-- `.github/workflows/cd.yml` — on `main`: build & push two images (`api`, `web`) to
-  ECR, deploy to ECS, run `prisma migrate deploy` as a one-off task, Slack on failure.
-
-The ECS task definitions (`aws/task-definition-{api,web}.json`) and the Prisma
-migrate task need to exist on your AWS side — the workflow expects them, but
-doesn't create them.
+  typecheck, test:cov, build both apps, upload coverage, Redocly lint `openapi.yaml`,
+  `cdk synth` + `jest` inside `infra/`.
+- `.github/workflows/cd.yml` — on `main`, OIDC-only (`AWS_ROLE_ARN` secret):
+  build & push two images (`api`, `web`) to ECR, deploy to ECS, run
+  `prisma db push --accept-data-loss` as a one-off Fargate task, Slack on failure.
 
 ### Rollback
 ```bash
@@ -157,26 +177,28 @@ aws ecs update-service \
 
 ## Architectural notes (deltas from CLAUDE.md's blueprint)
 
-- **Database is Postgres, not PlanetScale MySQL.** The handoff (`docs/handoff.html`)
-  specifies Postgres + pgvector for the agent; migrating to MySQL would sacrifice
-  the RAG pipeline the product depends on. Pinecone handles vectors in prod.
 - **Auth is NestJS-native JWT, not NextAuth.** Both SSR (Next RSC) and CSR consume
   the same `/api/auth/*` endpoints so the session model is a single source of truth.
+  Google/GitHub OAuth are implemented directly against each provider's token endpoint
+  behind env flags.
 - **Tests are targeted, not 100%.** CI runs `jest --coverage` and surfaces the
   number; it does not gate commits on 100% in this repo yet.
 
-Everything else mirrors the CLAUDE.md blueprint — rate-limited Copilot & Ask,
-Stripe Checkout + Portal + webhooks, GDPR endpoints, cookie-gated Mixpanel,
-ECR/ECS deploy.
+Everything else mirrors the CLAUDE.md blueprint — PlanetScale + Prisma
+(`relationMode = "prisma"`, no foreign keys, indexed FK columns, `db push`
+workflow), rate-limited Copilot & Ask, Stripe Checkout + Portal + webhooks,
+GDPR endpoints, cookie-gated Mixpanel, Pinecone + OpenAI embeddings,
+ECR/ECS deploy via OIDC.
 
 ---
 
 ## Troubleshooting
 
 - **`pnpm install` fails** — you need pnpm 9+. `corepack enable && corepack prepare pnpm@9.12.0 --activate`
-- **Prisma errors about pgvector** — pgvector is optional in this repo; the schema
-  does not declare `Unsupported("vector(...)")` by default. If you want real pgvector
-  similarity, run `CREATE EXTENSION vector` in your DB, then add the column and index.
+- **Prisma complains about foreign keys** — expected on PlanetScale. The schema uses
+  `relationMode = "prisma"` and every relation column has an `@@index(...)`.
+- **`db push` errors with data loss** — PlanetScale requires `--accept-data-loss`
+  when dropping/renaming. The CI/CD pipeline does this automatically on `main`.
 - **Blank dashboard** — the seed needs to run first (`pnpm --filter @tellar/api db:seed`).
 - **OAuth button does nothing** — without `GOOGLE_CLIENT_ID` / `GITHUB_CLIENT_ID`
   the endpoint returns a dev-only mock user. Add the env vars to turn on real OAuth.

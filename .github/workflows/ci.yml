@@ -10,19 +10,23 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/tellar?schema=public' }}
+      # For schema-changing PRs, set DATABASE_URL in repo secrets to a PlanetScale
+      # dev branch URL. CI falls back to a disposable local MySQL 8 service.
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'mysql://tellar:tellar@localhost:3306/tellar' }}
       JWT_SECRET: test-secret
       NODE_ENV: test
 
     services:
-      postgres:
-        image: postgres:16
+      mysql:
+        image: mysql:8
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: tellar
-        ports: ['5432:5432']
+          MYSQL_ROOT_PASSWORD: tellar
+          MYSQL_DATABASE: tellar
+          MYSQL_USER: tellar
+          MYSQL_PASSWORD: tellar
+        ports: ['3306:3306']
         options: >-
-          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+          --health-cmd "mysqladmin ping -h localhost -utellar -ptellar" --health-interval 10s --health-timeout 5s --health-retries 10
 
     steps:
       - uses: actions/checkout@v4

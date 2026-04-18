@@ -41,10 +41,8 @@ export class ViewerController {
     if (mode === 'EMAIL_GATED') {
       if (!dto.email) throw new BadRequestException({ reason: 'email-required' });
       const domain = dto.email.split('@')[1];
-      if (
-        share.allowedDomains?.length &&
-        !share.allowedDomains.some((d: string) => domain.endsWith(d.replace('@', '')))
-      ) {
+      const domains = Array.isArray(share.allowedDomains) ? (share.allowedDomains as string[]) : [];
+      if (domains.length && !domains.some(d => domain.endsWith(d.replace('@', '')))) {
         throw new ForbiddenException({ reason: 'domain-blocked' });
       }
       await this.shares.touchInvitee(share.id, dto.email);

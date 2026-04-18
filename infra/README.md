@@ -43,7 +43,7 @@ npm run diff -- -c env=production
    ```bash
    aws secretsmanager put-secret-value \
      --secret-id /tellar/production/database-url \
-     --secret-string 'postgresql://...'
+     --secret-string 'mysql://USER:PASS@aws.connect.psdb.cloud/tellar?sslaccept=strict'
    ```
    The full list of secret names is in `lib/stacks/secrets-stack.ts`.
 
