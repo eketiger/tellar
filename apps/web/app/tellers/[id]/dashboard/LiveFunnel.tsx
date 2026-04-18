@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { sanitizeSlideHtml } from '@/lib/sanitize';
 
 interface Row {
   id: string;
@@ -43,7 +44,7 @@ export function LiveFunnel({ initialFunnel, shareId }: { initialFunnel: Row[]; s
         <div key={r.id || r.idx} className={`slide-row ${r.drop > 30 ? 'focus' : ''}`}>
           <div className="slide-num">{String(r.idx).padStart(2, '0')}</div>
           <div className="slide-body">
-            <div className="slide-title" dangerouslySetInnerHTML={{ __html: r.title }} />
+            <div className="slide-title" dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(r.title) }} />
             <div className="bar"><div className={`bar-fill ${r.pct < 20 ? 'dim' : ''}`} style={{ width: r.pct + '%' }} /></div>
           </div>
           <div className="slide-time">{r.views} views</div>

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../auth/jwt.guard';
 import { WorkspaceGuard } from '../auth/workspace.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -12,8 +12,15 @@ export class TellersController {
   constructor(private svc: TellersService) {}
 
   @Get()
-  list(@CurrentUser() u: any) {
-    return this.svc.list(u.ws);
+  list(
+    @CurrentUser() u: any,
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
+  ) {
+    return this.svc.list(u.ws, {
+      take: take ? Number(take) : undefined,
+      skip: skip ? Number(skip) : undefined,
+    });
   }
 
   @Post()

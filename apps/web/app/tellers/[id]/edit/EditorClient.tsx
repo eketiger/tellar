@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { sanitizeSlideHtml } from '@/lib/sanitize';
 
 interface Slide {
   id: string;
@@ -80,7 +81,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                 {String(s.idx).padStart(2, '0')}
               </div>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                dangerouslySetInnerHTML={{ __html: s.title }} />
+                dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(s.title) }} />
             </button>
           ))}
         </div>
@@ -102,7 +103,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                 contentEditable suppressContentEditableWarning
                 onBlur={e => save(active.id, { title: e.currentTarget.innerHTML })}
                 style={{ fontFamily: 'var(--serif)', fontWeight: 400, fontSize: 56, letterSpacing: '-.03em', lineHeight: 1.05, outline: 'none' }}
-                dangerouslySetInnerHTML={{ __html: active.title }}
+                dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(active.title) }}
               />
               <p
                 contentEditable suppressContentEditableWarning

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { citeToHtml } from '@/lib/cite';
+import { sanitizeSlideHtml } from '@/lib/sanitize';
 
 interface Slide {
   id: string;
@@ -108,7 +109,7 @@ function Viewer({ data, email, idx, setIdx, shareId, tellerId }: any) {
   return (
     <>
       <header className="topbar">
-        <div className="brand"><span className="brand-mark" dangerouslySetInnerHTML={{ __html: data.teller.title }} /></div>
+        <div className="brand"><span className="brand-mark" dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(data.teller.title) }} /></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <span className="note">slide <b style={{ color: 'var(--ink)' }}>{slide.idx}</b> / {data.teller.slides.length}</span>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -134,7 +135,7 @@ function Viewer({ data, email, idx, setIdx, shareId, tellerId }: any) {
             )}
             <div className="note" style={{ textTransform: 'uppercase', marginBottom: 24 }}>{slide.eyebrow}</div>
             <h1 style={{ fontFamily: 'var(--serif)', fontWeight: 400, fontSize: 'clamp(32px, 5vw, 72px)', lineHeight: 1.05, letterSpacing: '-.03em' }}
-              dangerouslySetInnerHTML={{ __html: slide.title }} />
+              dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(slide.title) }} />
             {slide.subtitle && (
               <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 'clamp(16px,1.6vw,22px)', color: 'var(--ink-2)', marginTop: 24, lineHeight: 1.45 }}>
                 {slide.subtitle}

@@ -53,6 +53,8 @@ jobs:
         run: pnpm --filter @tellar/api lint
       - name: Test backend with coverage
         run: pnpm --filter @tellar/api test:cov -- --passWithNoTests
+      - name: Test frontend
+        run: pnpm --filter @tellar/web test -- --passWithNoTests
       - name: Build backend
         run: pnpm --filter @tellar/api build
       - name: Build frontend

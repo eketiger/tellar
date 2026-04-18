@@ -5,12 +5,24 @@ import { PrismaService } from '../prisma/prisma.service';
 export class TellersService {
   constructor(private prisma: PrismaService) {}
 
-  list(workspaceId: string) {
-    return this.prisma.teller.findMany({
-      where: { workspaceId, deletedAt: null },
-      orderBy: { updatedAt: 'desc' },
-      include: { _count: { select: { slides: true, shares: true, recordings: true } } },
-    });
+  async list(workspaceId: string, opts: { take?: number; skip?: number } = {}) {
+    const take = Math.min(Math.max(opts.take ?? 50, 1), 200);
+    const skip = Math.max(opts.skip ?? 0, 0);
+    const [items, total] = await Promise.all([
+      this.prisma.teller.findMany({
+        where: { workspaceId, deletedAt: null },
+        orderBy: { updatedAt: 'desc' },
+        take,
+        skip,
+        select: {
+          id: true, title: true, theme: true, revision: true,
+          createdAt: true, updatedAt: true,
+          _count: { select: { slides: true, shares: true, recordings: true } },
+        },
+      }),
+      this.prisma.teller.count({ where: { workspaceId, deletedAt: null } }),
+    ]);
+    return { items, total, take, skip };
   }
 
   async create(workspaceId: string, ownerId: string, title: string, theme?: string) {

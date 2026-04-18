@@ -28,7 +28,13 @@ export class WorkspacesController {
   @Post('workspaces/:id/switch')
   async switch(@Param('id') id: string, @CurrentUser() u: any, @Res({ passthrough: true }) res: Response) {
     const token = await this.auth.signFor(u.sub, id);
-    res.cookie('tellar_jwt', token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 3600 * 1000 });
+    res.cookie('tellar_jwt', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 7 * 24 * 3600 * 1000,
+    });
     return { ok: true, workspaceId: id, token };
   }
 

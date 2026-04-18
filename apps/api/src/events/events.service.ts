@@ -26,68 +26,81 @@ export class EventsService {
   }
 
   async funnel(tellerId: string) {
-    const slides = await this.prisma.slide.findMany({
-      where: { tellerId },
-      orderBy: { idx: 'asc' },
-    });
+    // Pull only the columns we need; the three counts run in parallel at the DB.
+    const [slides, slideViews, agentQueries, agentQueriesToday] = await Promise.all([
+      this.prisma.slide.findMany({
+        where: { tellerId },
+        orderBy: { idx: 'asc' },
+        select: { id: true, idx: true, title: true },
+      }),
+      this.prisma.event.findMany({
+        where: { tellerId, type: 'SLIDE_VIEW' },
+        select: { sessionId: true, email: true, slideIdx: true, dwellMs: true, at: true },
+      }),
+      this.prisma.event.count({ where: { tellerId, type: 'AGENT_QUERY' } }),
+      this.prisma.event.count({
+        where: { tellerId, type: 'AGENT_QUERY', at: { gte: new Date(Date.now() - 86_400_000) } },
+      }),
+    ]);
     const totalSlides = slides.length || 1;
-    const slideViews = await this.prisma.event.findMany({
-      where: { tellerId, type: 'SLIDE_VIEW' },
-    });
 
-    const uniqViewers = new Set(slideViews.map(e => e.email)).size;
-    const sessions: Record<string, number> = {};
+    // Single pass over slideViews to build every aggregate.
+    const perSlide: Map<number, Set<string | null>> = new Map();
+    const sessions: Map<string, number> = new Map();
+    const sessionDur: Map<string, number> = new Map();
+    const perEmail: Map<string, { slidesSeen: Set<number>; dwellMs: number; lastSeen: number }> = new Map();
+    const uniqEmails = new Set<string | null>();
     for (const e of slideViews) {
-      const id = e.sessionId;
-      sessions[id] = Math.max(sessions[id] || 0, e.slideIdx || 0);
+      uniqEmails.add(e.email);
+      if (e.slideIdx != null) {
+        let bucket = perSlide.get(e.slideIdx);
+        if (!bucket) { bucket = new Set(); perSlide.set(e.slideIdx, bucket); }
+        bucket.add(e.email);
+        sessions.set(e.sessionId, Math.max(sessions.get(e.sessionId) || 0, e.slideIdx));
+      }
+      sessionDur.set(e.sessionId, (sessionDur.get(e.sessionId) || 0) + (e.dwellMs || 0));
+      const k = e.email || 'anonymous';
+      let v = perEmail.get(k);
+      if (!v) { v = { slidesSeen: new Set(), dwellMs: 0, lastSeen: 0 }; perEmail.set(k, v); }
+      if (e.slideIdx != null) v.slidesSeen.add(e.slideIdx);
+      v.dwellMs += e.dwellMs || 0;
+      v.lastSeen = Math.max(v.lastSeen, e.at.getTime());
     }
-    const totalSessions = Object.keys(sessions).length || 1;
-    const completedSessions = Object.values(sessions).filter(r => r === totalSlides).length;
+
+    const totalSessions = sessions.size || 1;
+    const completedSessions = Array.from(sessions.values()).filter(r => r === totalSlides).length;
     const completion = Math.round((completedSessions / totalSessions) * 100);
 
-    const funnel = slides.map(s => {
-      const uniq = new Set(slideViews.filter(e => e.slideIdx === s.idx).map(e => e.email));
-      return { ...s, views: uniq.size };
-    });
-    const max = funnel[0]?.views || 1;
-    funnel.forEach((r, i) => {
-      (r as any).pct = Math.round((r.views / max) * 100);
-      (r as any).drop =
-        i === 0
-          ? 0
-          : Math.max(0, Math.round(((funnel[i - 1].views - r.views) / Math.max(funnel[i - 1].views, 1)) * 100));
-    });
+    const funnel: Array<{ id: string; idx: number; title: string; views: number; pct: number; drop: number }> = [];
+    let prevViews = 0;
+    let maxViews = 0;
+    for (const s of slides) {
+      const views = perSlide.get(s.idx)?.size ?? 0;
+      if (maxViews === 0) maxViews = views || 1;
+      funnel.push({
+        id: s.id,
+        idx: s.idx,
+        title: s.title,
+        views,
+        pct: Math.round((views / maxViews) * 100),
+        drop: funnel.length === 0 ? 0 : Math.max(0, Math.round(((prevViews - views) / Math.max(prevViews, 1)) * 100)),
+      });
+      prevViews = views;
+    }
 
-    let biggestDrop: any = { drop: 0, idx: 0, title: '' };
-    for (const r of funnel as any[]) {
+    let biggestDrop: { drop: number; idx: number; title: string } = { drop: 0, idx: 0, title: '' };
+    for (const r of funnel) {
       if (r.drop > biggestDrop.drop) biggestDrop = { drop: r.drop, idx: r.idx, title: r.title };
     }
 
-    const agentQueries = await this.prisma.event.count({ where: { tellerId, type: 'AGENT_QUERY' } });
-    const agentQueriesToday = await this.prisma.event.count({
-      where: { tellerId, type: 'AGENT_QUERY', at: { gte: new Date(Date.now() - 86_400_000) } },
-    });
+    let dwellSum = 0;
+    for (const v of sessionDur.values()) dwellSum += v;
+    const avgSessionMs = dwellSum / (sessionDur.size || 1);
 
-    const sessionDur: Record<string, number> = {};
-    for (const e of slideViews) sessionDur[e.sessionId] = (sessionDur[e.sessionId] || 0) + (e.dwellMs || 0);
-    const avgSessionMs =
-      Object.values(sessionDur).reduce((a, b) => a + b, 0) / (Object.keys(sessionDur).length || 1);
-
-    const perEmail: Record<string, any> = {};
-    for (const e of slideViews) {
-      const k = e.email || 'anonymous';
-      if (!perEmail[k]) perEmail[k] = { email: k, slidesSeen: new Set<number>(), dwellMs: 0, lastSeen: 0 };
-      perEmail[k].slidesSeen.add(e.slideIdx!);
-      perEmail[k].dwellMs += e.dwellMs || 0;
-      perEmail[k].lastSeen = Math.max(perEmail[k].lastSeen, e.at.getTime());
-    }
-    const viewers = Object.values(perEmail)
-      .map((v: any) => ({
-        email: v.email,
-        name: v.email
-          .split('@')[0]
-          .replace(/[._]/g, ' ')
-          .replace(/\b\w/g, (c: string) => c.toUpperCase()),
+    const viewers = Array.from(perEmail.entries())
+      .map(([email, v]) => ({
+        email,
+        name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
         slidesSeen: v.slidesSeen.size,
         totalSlides,
         dwellMs: v.dwellMs,
@@ -97,7 +110,7 @@ export class EventsService {
 
     return {
       totalSlides,
-      uniqueViewers: uniqViewers,
+      uniqueViewers: uniqEmails.size,
       completion,
       biggestDrop,
       agentQueries,

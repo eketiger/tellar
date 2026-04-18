@@ -59,7 +59,7 @@ export class AgentController {
   @Post('admin/reindex')
   @UseGuards(JwtGuard, AdminGuard)
   async reindex() {
-    const tellers = await this.kb['prisma'].teller.findMany({
+    const tellers = await this.kb.prisma.teller.findMany({
       where: { deletedAt: null, isPublished: true },
       select: { id: true },
       take: 50,

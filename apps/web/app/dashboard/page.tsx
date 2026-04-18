@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { apiServer } from '@/lib/api';
 import { getSession } from '@/lib/session';
+import { sanitizeSlideHtml } from '@/lib/sanitize';
 import { TopBar } from '@/components/TopBar';
 import { NavDock } from '@/components/NavDock';
 import { NewTellerButton } from './NewTellerButton';
@@ -13,8 +14,9 @@ export default async function DashboardPage() {
 
   const jar = await cookies();
   const cookieHeader = jar.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-  const tellers =
-    (await apiServer<any[]>('/tellers', cookieHeader)) || [];
+  const page = (await apiServer<{ items: any[]; total: number }>('/tellers', cookieHeader)) || { items: [], total: 0 };
+  const tellers = page.items;
+  const total = page.total;
 
   return (
     <>
@@ -32,7 +34,7 @@ export default async function DashboardPage() {
       <main className="shell">
         <div style={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', marginBottom: 30 }}>
           <div>
-            <div className="note" style={{ marginBottom: 10 }}>— {tellers.length} tellers</div>
+            <div className="note" style={{ marginBottom: 10 }}>— {total} tellers</div>
             <h1 style={{ fontFamily: 'var(--serif)', fontWeight: 300, fontSize: 48, letterSpacing: '-.025em', lineHeight: 1.05 }}>
               Your <em style={{ color: 'var(--accent)' }}>tellers</em>.
             </h1>
@@ -56,7 +58,7 @@ export default async function DashboardPage() {
                 <div className="note" style={{ marginBottom: 10 }}>rev {t.revision} · {t._count?.slides ?? '—'} slides · {t._count?.shares ? 'shared' : 'not shared'}</div>
                 <h3 style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 400, letterSpacing: '-.01em', marginBottom: 14 }}>
                   {/* eslint-disable-next-line react/no-danger */}
-                  <span dangerouslySetInnerHTML={{ __html: t.title }} />
+                  <span dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(t.title) }} />
                 </h3>
                 <div style={{ display: 'flex', gap: 14, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.05em' }}>
                   <span>updated {new Date(t.updatedAt).toLocaleDateString()}</span>

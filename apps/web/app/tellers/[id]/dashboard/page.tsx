@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { apiServer } from '@/lib/api';
 import { getSession } from '@/lib/session';
+import { sanitizeSlideHtml } from '@/lib/sanitize';
 import { TopBar } from '@/components/TopBar';
 import { NavDock } from '@/components/NavDock';
 import { LiveFunnel } from './LiveFunnel';
@@ -46,7 +47,7 @@ export default async function TellerDashboard({ params }: { params: Promise<{ id
           <div>
             <div className="note" style={{ marginBottom: 10 }}>— Dashboard · rev {teller.revision}</div>
             <h1 style={{ fontFamily: 'var(--serif)', fontWeight: 400, fontSize: 44, lineHeight: 1.05, letterSpacing: '-.025em' }}
-              dangerouslySetInnerHTML={{ __html: teller.title }} />
+              dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(teller.title) }} />
             <div style={{ display: 'flex', gap: 18, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)', marginTop: 18, flexWrap: 'wrap' }}>
               <span><b style={{ color: 'var(--ink)' }}>{metrics?.totalSlides ?? 0}</b> slides</span>
               <span className="note">·</span>

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { chunkText } from './chunker';
 import { embedBatch, embedText } from './embeddings';
@@ -8,9 +8,15 @@ function stripHtml(s: string) {
   return (s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
+/** Each teller gets its own Pinecone namespace so deletes are trivial. */
+function nsFor(tellerId: string) {
+  return tellerId;
+}
+
 @Injectable()
 export class KnowledgeBaseService {
-  constructor(private prisma: PrismaService) {}
+  private readonly log = new Logger(KnowledgeBaseService.name);
+  constructor(public readonly prisma: PrismaService) {}
 
   async tellerText(tellerId: string) {
     const t = await this.prisma.teller.findUnique({
@@ -42,23 +48,38 @@ export class KnowledgeBaseService {
     const embeddings = await embedBatch(chunks);
 
     if (idx && embeddings) {
-      // Clear previous vectors for this teller first.
-      await idx.deleteMany({ tellerId } as any).catch(() => undefined);
-      await idx.upsert(
-        chunks.map((text, i) => ({
-          id: `${tellerId}_${i}`,
-          values: embeddings[i],
-          metadata: {
-            tellerId,
-            chunkIndex: i,
-            chunkText: text.slice(0, 1000),
-            authorId: bundle.teller.ownerId,
-            isPublished: bundle.teller.isPublished,
-            createdAt: bundle.teller.createdAt.toISOString(),
-            updatedAt: bundle.teller.updatedAt.toISOString(),
-          },
-        })),
-      );
+      // Per-teller namespace → clean wipe with deleteAll, no metadata filter gymnastics.
+      const ns = idx.namespace(nsFor(tellerId));
+      try {
+        await ns.deleteAll();
+      } catch (e: any) {
+        // First-time index: namespace doesn't exist yet. Safe to ignore.
+        this.log.debug(`deleteAll skipped: ${e?.message}`);
+      }
+      try {
+        await ns.upsert(
+          chunks.map((text, i) => ({
+            id: `${tellerId}_${i}`,
+            values: embeddings[i],
+            metadata: {
+              tellerId,
+              chunkIndex: i,
+              chunkText: text.slice(0, 1000),
+              authorId: bundle.teller.ownerId,
+              isPublished: bundle.teller.isPublished,
+              createdAt: bundle.teller.createdAt.toISOString(),
+              updatedAt: bundle.teller.updatedAt.toISOString(),
+            },
+          })),
+        );
+      } catch (e: any) {
+        this.log.error(`Pinecone upsert failed: ${e?.message}`);
+        await this.prisma.teller.update({
+          where: { id: tellerId },
+          data: { vectorStatus: 'error' },
+        });
+        return { indexed: 0, skipped: true, reason: 'upsert-failed' };
+      }
     }
     await this.prisma.teller.update({
       where: { id: tellerId },
@@ -69,7 +90,13 @@ export class KnowledgeBaseService {
 
   async deleteTellerVectors(tellerId: string) {
     const idx = pineconeIndex();
-    if (idx) await idx.deleteMany({ tellerId } as any).catch(() => undefined);
+    if (idx) {
+      try {
+        await idx.namespace(nsFor(tellerId)).deleteAll();
+      } catch (e: any) {
+        this.log.debug(`deleteAll skipped: ${e?.message}`);
+      }
+    }
     await this.prisma.teller.update({
       where: { id: tellerId },
       data: { vectorStatus: 'deleted' },
@@ -78,21 +105,24 @@ export class KnowledgeBaseService {
 
   async retrieve(tellerId: string, question: string, topK = 5) {
     const idx = pineconeIndex();
-    const emb = await embedText(question);
+    const emb = await embedText(question).catch(() => null);
     if (idx && emb) {
-      const r = await idx.query({
-        vector: emb,
-        topK,
-        filter: { tellerId } as any,
-        includeMetadata: true,
-      });
-      return r.matches.map(m => ({
-        text: String(m.metadata?.chunkText || ''),
-        score: m.score || 0,
-        slideIdx: null as number | null,
-        label: `[rag] ${String(m.metadata?.chunkText || '').slice(0, 80)}…`,
-        ref: `[cite:kb:teller-${tellerId}]`,
-      }));
+      try {
+        const r = await idx.namespace(nsFor(tellerId)).query({
+          vector: emb,
+          topK,
+          includeMetadata: true,
+        });
+        return r.matches.map(m => ({
+          text: String(m.metadata?.chunkText || ''),
+          score: m.score || 0,
+          slideIdx: null as number | null,
+          label: `[rag] ${String(m.metadata?.chunkText || '').slice(0, 80)}…`,
+          ref: `[cite:kb:teller-${tellerId}]`,
+        }));
+      } catch (e: any) {
+        this.log.warn(`Pinecone query failed, falling back to keywords: ${e?.message}`);
+      }
     }
     // Fallback: naive keyword scoring over slide+notes text
     const bundle = await this.tellerText(tellerId);
@@ -111,37 +141,50 @@ export class KnowledgeBaseService {
 
   async similarTellers(tellerId: string, limit = 5) {
     const idx = pineconeIndex();
-    if (!idx) {
-      // Simple fallback: other tellers in the same workspace ordered by updatedAt
-      const t = await this.prisma.teller.findUnique({ where: { id: tellerId } });
-      if (!t) return [];
-      return this.prisma.teller.findMany({
-        where: { workspaceId: t.workspaceId, id: { not: tellerId }, deletedAt: null, isPublished: true },
-        orderBy: { updatedAt: 'desc' },
-        take: limit,
-        select: { id: true, title: true, updatedAt: true },
-      });
+    if (idx) {
+      try {
+        const seed = await idx.namespace(nsFor(tellerId)).fetch([`${tellerId}_0`]);
+        const vec = seed?.records?.[`${tellerId}_0`]?.values;
+        if (vec) {
+          // Cross-namespace similar-by-vector isn't free — query the default namespace
+          // which should hold copies; production might fan out across namespaces.
+          const r = await idx.query({
+            vector: vec,
+            topK: limit + 5,
+            filter: { isPublished: true } as any,
+            includeMetadata: true,
+          });
+          const uniq = new Map<string, number>();
+          for (const m of r.matches || []) {
+            const id = String(m.metadata?.tellerId || '');
+            if (!id || id === tellerId) continue;
+            if (!uniq.has(id)) uniq.set(id, m.score || 0);
+          }
+          const ids = Array.from(uniq.keys()).slice(0, limit);
+          if (ids.length) {
+            const tellers = await this.prisma.teller.findMany({
+              where: { id: { in: ids } },
+              select: { id: true, title: true, updatedAt: true },
+            });
+            return tellers.map(t => ({ ...t, score: uniq.get(t.id) || 0 }));
+          }
+        }
+      } catch (e: any) {
+        this.log.warn(`Pinecone similar query failed, falling back: ${e?.message}`);
+      }
     }
-    const seed = await idx.fetch([`${tellerId}_0`]).catch(() => null);
-    const vec = seed?.records?.[`${tellerId}_0`]?.values;
-    if (!vec) return [];
-    const r = await idx.query({
-      vector: vec,
-      topK: limit + 5,
-      filter: { isPublished: true } as any,
-      includeMetadata: true,
+
+    // Fallback: other tellers in the same workspace ordered by updatedAt.
+    const t = await this.prisma.teller.findUnique({
+      where: { id: tellerId },
+      select: { workspaceId: true },
     });
-    const uniq = new Map<string, number>();
-    for (const m of r.matches || []) {
-      const id = String(m.metadata?.tellerId || '');
-      if (!id || id === tellerId) continue;
-      if (!uniq.has(id)) uniq.set(id, m.score || 0);
-    }
-    const ids = Array.from(uniq.keys()).slice(0, limit);
-    const tellers = await this.prisma.teller.findMany({
-      where: { id: { in: ids } },
+    if (!t) return [];
+    return this.prisma.teller.findMany({
+      where: { workspaceId: t.workspaceId, id: { not: tellerId }, deletedAt: null, isPublished: true },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
       select: { id: true, title: true, updatedAt: true },
     });
-    return tellers.map(t => ({ ...t, score: uniq.get(t.id) || 0 }));
   }
 }

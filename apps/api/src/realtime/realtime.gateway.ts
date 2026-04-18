@@ -25,9 +25,10 @@ export class RealtimeGateway {
   ) {
     try {
       const payload = await this.jwt.verifyAsync<any>(body.jwt);
+      // Trim payload: only the one column we need for the tenant check.
       const share = await this.prisma.share.findUnique({
         where: { id: body.shareId },
-        include: { teller: true },
+        select: { teller: { select: { workspaceId: true } } },
       });
       if (!share || share.teller.workspaceId !== payload.ws) throw new WsException('forbidden');
       socket.join(`share:${body.shareId}`);
