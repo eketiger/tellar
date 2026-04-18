@@ -29,12 +29,15 @@ async function main() {
   const passwordHash = await argon2.hash('demo1234');
   const user = await prisma.user.upsert({
     where: { email: 'martin@tellar.studio' },
-    update: {},
+    update: { role: 'ADMIN' },
     create: {
       email: 'martin@tellar.studio',
       name: 'Martín Echeverría',
       passwordHash,
       provider: 'EMAIL',
+      role: 'ADMIN',
+      gdprConsentAt: new Date(),
+      gdprConsentVersion: '2026-04-18',
     },
   });
 

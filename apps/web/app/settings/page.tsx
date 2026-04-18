@@ -27,6 +27,7 @@ export default async function SettingsPage() {
         initials={session.session.initials}
         name={session.session.name}
         email={session.session.email}
+        isAdmin={session.session.isAdmin}
       />
       <SettingsClient
         workspace={session.workspace}

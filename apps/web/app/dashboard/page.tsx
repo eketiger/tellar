@@ -26,6 +26,7 @@ export default async function DashboardPage() {
         initials={session.session.initials}
         name={session.session.name}
         email={session.session.email}
+        isAdmin={session.session.isAdmin}
       />
 
       <main className="shell">

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { JwtGuard } from './jwt.guard';
@@ -25,8 +25,13 @@ export class AuthController {
   }
 
   @Get('oauth/:provider')
-  async oauth(@Param('provider') provider: 'google' | 'github', @Res({ passthrough: true }) res: Response) {
-    const r = await this.auth.oauthMock(provider);
+  async oauth(
+    @Param('provider') provider: 'google' | 'github',
+    @Query('code') code: string | undefined,
+    @Query('redirect_uri') redirectUri: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const r = await this.auth.oauthExchange(provider, code, redirectUri);
     this.setCookie(res, r.token);
     return r;
   }

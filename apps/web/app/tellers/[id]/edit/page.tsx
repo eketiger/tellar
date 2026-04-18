@@ -27,6 +27,7 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
         initials={session.session.initials}
         name={session.session.name}
         email={session.session.email}
+        isAdmin={session.session.isAdmin}
         right={<a className="btn" href={`/tellers/${id}/share`}>Share settings →</a>}
       />
       <EditorClient teller={teller} />

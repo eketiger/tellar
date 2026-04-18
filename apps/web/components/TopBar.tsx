@@ -18,6 +18,7 @@ export function TopBar(props: {
   name: string;
   right?: React.ReactNode;
   live?: boolean;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -68,6 +69,9 @@ export function TopBar(props: {
                 <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{props.email}</div>
               </div>
               <Link href="/dashboard" className="note" style={{ display: 'block', padding: '11px 14px', borderBottom: '1px solid var(--line)' }}>→ Dashboard</Link>
+              {props.isAdmin && (
+                <Link href="/admin" className="note" style={{ display: 'block', padding: '11px 14px', borderBottom: '1px solid var(--line)', color: 'var(--accent)' }}>→ Backoffice (admin)</Link>
+              )}
               <Link href="/settings" className="note" style={{ display: 'block', padding: '11px 14px', borderBottom: '1px solid var(--line)' }}>→ Account settings</Link>
               <Link href="/settings#workspace" className="note" style={{ display: 'block', padding: '11px 14px', borderBottom: '1px solid var(--line)' }}>→ Workspace</Link>
               <Link href="/settings#billing" className="note" style={{ display: 'block', padding: '11px 14px', borderBottom: '1px solid var(--line)' }}>→ Billing & usage</Link>

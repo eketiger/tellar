@@ -1,0 +1,99 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # --- API image ---------------------------------------------------------
+      - name: Build & push API image
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        run: |
+          docker build -f apps/api/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY-api:$GITHUB_SHA -t $ECR_REGISTRY/$ECR_REPOSITORY-api:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY-api:$GITHUB_SHA
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY-api:latest
+
+      - name: Render API task definition
+        id: api-taskdef
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: aws/task-definition-api.json
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_API }}
+          image: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}-api:${{ github.sha }}
+
+      - name: Deploy API to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.api-taskdef.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE_API }}
+          cluster: ${{ secrets.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      # --- Web image ---------------------------------------------------------
+      - name: Build & push Web image
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        run: |
+          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY-web:$GITHUB_SHA -t $ECR_REGISTRY/$ECR_REPOSITORY-web:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY-web:$GITHUB_SHA
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY-web:latest
+
+      - name: Render Web task definition
+        id: web-taskdef
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: aws/task-definition-web.json
+          container-name: ${{ secrets.ECS_CONTAINER_NAME_WEB }}
+          image: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}-web:${{ github.sha }}
+
+      - name: Deploy Web to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.web-taskdef.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE_WEB }}
+          cluster: ${{ secrets.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      # --- DB migration ------------------------------------------------------
+      - name: Run Prisma migrate on ECS (one-off)
+        run: |
+          aws ecs run-task \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --task-definition ${{ secrets.ECS_TASK_DEFINITION_MIGRATE }} \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_SUBNETS }}],securityGroups=[${{ secrets.ECS_SG }}],assignPublicIp=ENABLED}" \
+            --overrides '{"containerOverrides":[{"name":"${{ secrets.ECS_CONTAINER_NAME_API }}","command":["npx","prisma","migrate","deploy"]}]}'
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": ":x: Tellar CD failed",
+              "blocks": [
+                { "type": "section", "text": { "type": "mrkdwn",
+                  "text": "*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}` by ${{ github.actor }}\n*Run:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" } }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

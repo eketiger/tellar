@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.git
+coverage
+.env*
+!.env.example
+*.log
+apps/api/uploads
+docs/handoff.html
+docs/shared.css

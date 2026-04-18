@@ -12,9 +12,22 @@ async function bootstrap() {
     bodyParser: false, // we wire JSON+raw manually so PUT /recordings/:id/blob stays untouched
   });
   app.use(cookieParser());
-  // Raw body for PUT /api/recordings/:id/blob (do NOT parse)
+  // Raw body for:
+  //   PUT /api/recordings/:id/blob   — we stream bytes into a file
+  //   POST /api/billing/webhook      — Stripe needs the raw buffer for signature verification
   app.use((req: any, res: any, next: any) => {
     if (req.method === 'PUT' && /\/api\/recordings\/[^/]+\/blob$/.test(req.url)) return next();
+    if (req.method === 'POST' && req.url === '/api/billing/webhook') {
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        req.rawBody = Buffer.concat(chunks);
+        try { req.body = JSON.parse(req.rawBody.toString('utf8')); } catch { req.body = {}; }
+        next();
+      });
+      req.on('error', next);
+      return;
+    }
     return json({ limit: '10mb' })(req, res, next);
   });
   app.enableCors({

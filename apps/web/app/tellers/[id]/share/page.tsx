@@ -30,6 +30,7 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
         initials={session.session.initials}
         name={session.session.name}
         email={session.session.email}
+        isAdmin={session.session.isAdmin}
       />
       <ShareClient tellerId={id} initialShare={share} />
       <NavDock tellerId={id} />

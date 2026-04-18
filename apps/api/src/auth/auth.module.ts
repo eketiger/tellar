@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtGuard } from './jwt.guard';
 import { WorkspaceGuard } from './workspace.guard';
+import { AdminGuard } from './admin.guard';
 
 @Module({
   imports: [
@@ -12,8 +13,8 @@ import { WorkspaceGuard } from './workspace.guard';
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  providers: [AuthService, JwtGuard, WorkspaceGuard],
+  providers: [AuthService, JwtGuard, WorkspaceGuard, AdminGuard],
   controllers: [AuthController],
-  exports: [AuthService, JwtGuard, WorkspaceGuard, JwtModule],
+  exports: [AuthService, JwtGuard, WorkspaceGuard, AdminGuard, JwtModule],
 })
 export class AuthModule {}

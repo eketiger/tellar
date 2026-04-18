@@ -12,6 +12,8 @@ import { EventsModule } from './events/events.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { BillingModule } from './billing/billing.module';
 import { ViewerModule } from './viewer/viewer.module';
+import { AdminModule } from './admin/admin.module';
+import { GdprModule } from './gdpr/gdpr.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { ViewerModule } from './viewer/viewer.module';
     RealtimeModule,
     BillingModule,
     ViewerModule,
+    AdminModule,
+    GdprModule,
   ],
 })
 export class AppModule {}

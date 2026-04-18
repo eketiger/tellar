@@ -48,15 +48,36 @@ enum EventType {
 }
 
 model User {
-  id              String       @id @default(cuid())
-  email           String       @unique
-  name            String
-  passwordHash    String?
-  provider        AuthProvider @default(EMAIL)
-  createdAt       DateTime     @default(now())
-  memberships     Membership[]
-  sessions        Session[]
-  ownedWorkspaces Workspace[]  @relation("owner")
+  id                    String       @id @default(cuid())
+  email                 String       @unique
+  name                  String
+  passwordHash          String?
+  provider              AuthProvider @default(EMAIL)
+  providerId            String?
+  avatarUrl             String?
+  role                  UserRole     @default(USER)
+  isSuspended           Boolean      @default(false)
+  lastLoginAt           DateTime?
+  // GDPR
+  gdprConsentAt         DateTime?
+  gdprConsentVersion    String?
+  dataExportRequestedAt DateTime?
+  deletionRequestedAt   DateTime?
+  // Stripe
+  stripeCustomerId      String?      @unique
+  createdAt             DateTime     @default(now())
+  memberships           Membership[]
+  sessions              Session[]
+  ownedWorkspaces       Workspace[]  @relation("owner")
+  subscriptions         Subscription[]
+  invoices              Invoice[]
+  copilotUsages         CopilotUsage[]
+  askUsages             AskUsage[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 model Workspace {
@@ -96,10 +117,13 @@ model Teller {
   title       String
   theme       String      @default("editorial-cream")
   revision    Int         @default(1)
-  deletedAt   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  slides      Slide[]
+  deletedAt    DateTime?
+  vectorizedAt DateTime?
+  vectorStatus String?
+  isPublished  Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  slides       Slide[]
   shares      Share[]
   kbSources   KBSource[]
   recordings  Recording[]
@@ -235,4 +259,82 @@ model Session {
   userAgent String?
   ip        String?
   createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String    @unique
+  stripePriceId        String
+  status               String
+  plan                 String
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean   @default(false)
+  canceledAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Invoice {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeInvoiceId String   @unique
+  amountPaid      Int
+  currency        String
+  status          String
+  invoicePdf      String?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+}
+
+model CopilotUsage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   String
+  count  Int    @default(0)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+model AskUsage {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tellerId String
+  date     String
+  count    Int    @default(0)
+
+  @@unique([userId, tellerId, date])
+  @@index([userId])
+}
+
+model TellerAsk {
+  id        String   @id @default(cuid())
+  tellerId  String
+  userId    String
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+
+  @@index([tellerId])
+  @@index([userId])
+}
+
+model CookieConsent {
+  id        String   @id @default(cuid())
+  userId    String?
+  ipHash    String?
+  version   String
+  accepted  Boolean
+  at        DateTime @default(now())
+
+  @@index([userId])
 }

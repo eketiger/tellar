@@ -37,6 +37,7 @@ export default async function TellerDashboard({ params }: { params: Promise<{ id
         initials={session.session.initials}
         name={session.session.name}
         email={session.session.email}
+        isAdmin={session.session.isAdmin}
         live={metrics?.uniqueViewers > 0}
       />
 

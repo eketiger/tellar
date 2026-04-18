@@ -1,11 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { AgentAskDto } from '@tellar/api-types';
+import { KnowledgeBaseService } from './knowledge-base';
 
-const SYSTEM = `You are the Tellar agent for a deck ("teller"). You answer viewer questions using only the deck, the creator's narration, and the attached knowledge base. Rules:
+const MODEL = 'claude-sonnet-4-20250514';
+const COPILOT_DAILY_LIMIT = 50;
+const ASK_DAILY_LIMIT_PER_TELLER = 20;
+
+const ASK_SYSTEM = `You are the Tellar agent for a deck ("teller"). You answer viewer questions using only the deck, the creator's narration, and the attached knowledge base. Rules:
 - Cite sources inline using this EXACT syntax:
   [cite:slide:N]     for a slide reference
   [cite:audio:N]     for narration of slide N
@@ -14,14 +18,14 @@ const SYSTEM = `You are the Tellar agent for a deck ("teller"). You answer viewe
 - When you don't know, say so and suggest what the creator could add.
 - End with one "Sources: ..." line listing the citations plainly.`;
 
+const COPILOT_SYSTEM = `You are a writing copilot embedded in a content creation platform. You assist Tellers (content authors) in improving their work. Be concise, constructive, and match the author's existing voice. Respond ONLY with the improved or suggested text — no explanations, no preamble, no markdown wrappers.`;
+
 function stripHtml(s: string) {
   return (s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function keywordScore(text: string, question: string): number {
-  const q = question.toLowerCase().split(/\W+/).filter(Boolean);
-  const t = text.toLowerCase();
-  return q.reduce((acc, term) => acc + (t.includes(term) ? 1 : 0), 0);
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 @Injectable()
@@ -29,80 +33,48 @@ export class AgentService {
   private anthropic = process.env.ANTHROPIC_API_KEY
     ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     : null;
-  private openai = process.env.OPENAI_API_KEY
-    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    : null;
 
-  constructor(private prisma: PrismaService, private events: EventsService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsService,
+    private kb: KnowledgeBaseService,
+  ) {}
 
-  async ask(dto: AgentAskDto) {
+  async ask(dto: AgentAskDto & { userId?: string }) {
+    if (dto.userId) await this.enforceAskLimit(dto.userId, dto.tellerId);
+
     const teller = await this.prisma.teller.findUnique({
       where: { id: dto.tellerId },
       include: {
         slides: { orderBy: { idx: 'asc' } },
-        kbSources: { include: { chunks: true } },
-        recordings: true,
       },
     });
     if (!teller) return { answer: 'Teller not found.', citations: [] };
 
-    // RETRIEVE: mix 60% slides, 30% transcripts, 10% kb
-    const scored: Array<{ text: string; label: string; score: number; ref: string }> = [];
-    for (const s of teller.slides) {
-      const text = [stripHtml(s.title), stripHtml(s.subtitle || ''), stripHtml(s.notes || '')].join(' ');
-      scored.push({
-        text,
-        label: `[slide ${s.idx}] ${stripHtml(s.title)}`,
-        score: keywordScore(text, dto.question),
-        ref: `[cite:slide:${s.idx}]`,
-      });
-    }
-    for (const r of teller.recordings) {
-      const text = r.transcript || '';
-      if (!text) continue;
-      scored.push({
-        text,
-        label: `[audio slide ${r.slideId ? '#' : ''}] ${text.slice(0, 80)}…`,
-        score: keywordScore(text, dto.question) * 0.8,
-        ref: `[cite:audio:${r.slideId || ''}]`,
-      });
-    }
-    for (const src of teller.kbSources) {
-      for (const ch of src.chunks) {
-        scored.push({
-          text: ch.text,
-          label: `[${src.kind}] ${src.name}${ch.page ? ` p.${ch.page}` : ''}`,
-          score: keywordScore(ch.text, dto.question) * 0.7,
-          ref: `[cite:kb:${src.name}]`,
-        });
-      }
-      // If no chunks yet, include name as fallback
-      if (src.chunks.length === 0) {
-        scored.push({
-          text: src.name,
-          label: `[${src.kind}] ${src.name}`,
-          score: keywordScore(src.name, dto.question) * 0.3,
-          ref: `[cite:kb:${src.name}]`,
-        });
-      }
-    }
+    const chunks = await this.kb.retrieve(dto.tellerId, dto.question, 5);
+    // Lean slide pool always present for citation targets
+    const slidePool = teller.slides.map(s => ({
+      text: [stripHtml(s.title), stripHtml(s.subtitle || '')].join(' '),
+      label: `[slide ${s.idx}] ${stripHtml(s.title)}`,
+      ref: `[cite:slide:${s.idx}]`,
+      score: 0,
+    }));
 
-    const top = scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 6)
-      .filter(x => x.score > 0 || scored.indexOf(x) < 4);
-
-    const context = top.map(t => `${t.label}\n${t.text}`).join('\n\n---\n\n');
+    const context =
+      [...chunks, ...slidePool.slice(0, 4)]
+        .slice(0, 8)
+        .map((t, i) => `(${i + 1}) ${t.label || ''}\n${t.text}`)
+        .join('\n\n---\n\n');
 
     let answer: string;
     if (this.anthropic) {
       try {
         const resp = await this.anthropic.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 400,
-          system: SYSTEM,
+          model: MODEL,
+          max_tokens: 512,
+          system: ASK_SYSTEM,
           messages: [
-            ...dto.history.map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+            ...(dto.history || []).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
             {
               role: 'user',
               content: `QUESTION: ${dto.question}\n\nRELEVANT CONTEXT:\n${context}`,
@@ -113,68 +85,131 @@ export class AgentService {
           .filter(c => c.type === 'text')
           .map((c: any) => c.text)
           .join('\n');
-      } catch (e: any) {
-        answer = this.mockAnswer(dto.question, top);
+      } catch {
+        answer = this.mockAnswer(dto.question, chunks, slidePool);
       }
     } else {
-      answer = this.mockAnswer(dto.question, top);
+      answer = this.mockAnswer(dto.question, chunks, slidePool);
     }
 
     await this.events.track({
       type: 'AGENT_QUERY',
       tellerId: dto.tellerId,
-      sessionId: dto.email || 'anon',
+      sessionId: dto.userId || dto.email || 'anon',
       email: dto.email,
-      meta: { question: dto.question, answer },
+      meta: { question: dto.question },
     });
+
+    if (dto.userId) {
+      await this.prisma.tellerAsk.create({
+        data: { tellerId: dto.tellerId, userId: dto.userId, question: dto.question, answer },
+      });
+      await this.bumpAskCount(dto.userId, dto.tellerId);
+    }
 
     return {
       answer,
-      citations: top.slice(0, 4).map(t => ({ ref: t.ref, label: t.label })),
+      citations: [...chunks, ...slidePool.slice(0, 2)].slice(0, 4).map(t => ({ ref: t.ref, label: t.label })),
     };
   }
 
-  private mockAnswer(question: string, top: any[]) {
-    const refs = top
-      .slice(0, 2)
-      .map(t => t.ref)
-      .join(' ');
-    const lead = top[0]?.text?.slice(0, 160) || 'I don\'t have enough context to answer yet.';
-    return `${lead} ${refs}\n\nSources: ${top
-      .slice(0, 2)
-      .map(t => t.label)
-      .join('; ') || '(none)'}`;
+  private mockAnswer(question: string, chunks: any[], slidePool: any[]) {
+    const top = chunks[0]?.text || slidePool[0]?.text || "I don't have enough context to answer yet.";
+    const refs = [chunks[0]?.ref, slidePool[0]?.ref].filter(Boolean).join(' ');
+    return `${top.slice(0, 200)} ${refs}\n\nSources: ${[chunks[0]?.label, slidePool[0]?.label].filter(Boolean).join('; ') || '(none)'}`;
   }
 
-  async copilot(kind: 'rewrite' | 'tighten' | 'narration' | 'structure', slideId: string) {
-    const slide = await this.prisma.slide.findUnique({ where: { id: slideId } });
-    if (!slide) return { suggestion: '' };
-    const prompts: Record<typeof kind, string> = {
-      rewrite: `Rewrite this pitch slide to be punchier while staying editorial. Current title: "${stripHtml(
-        slide.title,
-      )}". Subtitle: "${stripHtml(slide.subtitle || '')}". Return ONE alternative title (<=14 words) and ONE subtitle (<=24 words) separated by "|". Wrap the strongest word in <em>...</em>. No preamble.`,
-      tighten: `Make this slide subtitle more specific. Current: "${stripHtml(slide.subtitle || '')}". Return only the new subtitle.`,
-      narration: `Write a 20-second first-person narration for a pitch slide titled "${stripHtml(
-        slide.title,
-      )}" and subtitle "${stripHtml(slide.subtitle || '')}". No filler words.`,
-      structure: `Propose a new slide to insert after "${stripHtml(slide.title)}". Return one title (<=10 words) and one subtitle (<=24 words) separated by "|". Wrap the strongest word in <em>...</em>.`,
-    };
-    if (!this.anthropic) {
-      return { suggestion: `${slide.title.replace(/<em>|<\/em>/g, '')} | ${slide.subtitle || 'Refine me.'}` };
+  async copilot(
+    kind: 'rewrite' | 'tighten' | 'narration' | 'structure' | 'improve' | 'expand' | 'summarize' | 'fix_grammar' | 'change_tone',
+    opts: { slideId?: string; selectedText?: string; context?: string; toneTarget?: string; userId?: string },
+  ) {
+    if (opts.userId) await this.enforceCopilotLimit(opts.userId);
+
+    const slide = opts.slideId ? await this.prisma.slide.findUnique({ where: { id: opts.slideId } }) : null;
+    const source = opts.selectedText || (slide ? `${stripHtml(slide.title)} — ${stripHtml(slide.subtitle || '')}` : '');
+
+    const prompt = this.copilotPrompt(kind, { ...opts, source });
+    let suggestion = '';
+    if (this.anthropic) {
+      try {
+        const r = await this.anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 400,
+          system: COPILOT_SYSTEM,
+          messages: [{ role: 'user', content: prompt }],
+        });
+        suggestion = r.content.filter(c => c.type === 'text').map((c: any) => c.text).join('\n');
+      } catch {
+        suggestion = this.mockCopilot(kind, source);
+      }
+    } else {
+      suggestion = this.mockCopilot(kind, source);
     }
-    try {
-      const r = await this.anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 200,
-        messages: [{ role: 'user', content: prompts[kind] }],
-      });
-      const text = r.content
-        .filter(c => c.type === 'text')
-        .map((c: any) => c.text)
-        .join('\n');
-      return { suggestion: text };
-    } catch (e: any) {
-      return { suggestion: 'Copilot offline.' };
+
+    if (opts.userId) await this.bumpCopilotCount(opts.userId);
+    return { suggestion };
+  }
+
+  private copilotPrompt(kind: string, opts: any) {
+    const src = opts.source || '';
+    switch (kind) {
+      case 'rewrite':
+        return `Rewrite this pitch slide to be punchier while staying editorial. Source: "${src}". Return ONE new title (<=14 words) and ONE subtitle (<=24 words) separated by "|". Wrap the strongest word in <em>...</em>. No preamble.`;
+      case 'tighten':
+        return `Make this shorter and more specific. Source: "${src}". Return only the new text.`;
+      case 'narration':
+        return `Write a 20-second first-person narration for: "${src}". No filler words.`;
+      case 'structure':
+        return `Propose a new slide to insert after "${src}". Return one title (<=10 words) and one subtitle (<=24 words) separated by "|". Wrap the strongest word in <em>...</em>.`;
+      case 'improve':
+        return `Improve this text while preserving its meaning and voice: "${src}"`;
+      case 'expand':
+        return `Expand this text with one more relevant sentence: "${src}"`;
+      case 'summarize':
+        return `Summarize: "${src}" in one sentence.`;
+      case 'fix_grammar':
+        return `Fix grammar and punctuation only, keep voice intact: "${src}"`;
+      case 'change_tone':
+        return `Rewrite in a ${opts.toneTarget || 'more confident'} tone: "${src}"`;
+      default:
+        return `Rewrite: "${src}"`;
     }
+  }
+
+  private mockCopilot(kind: string, source: string) {
+    if (kind === 'rewrite' || kind === 'structure') return `${source.split('—')[0]?.trim() || 'Untitled'} | ${source.split('—')[1]?.trim() || 'Refine me.'}`;
+    return source;
+  }
+
+  private async enforceCopilotLimit(userId: string) {
+    const row = await this.prisma.copilotUsage.findUnique({
+      where: { userId_date: { userId, date: today() } },
+    });
+    if ((row?.count || 0) >= COPILOT_DAILY_LIMIT)
+      throw new ForbiddenException('Daily Copilot limit reached. Upgrade for unlimited access.');
+  }
+
+  private async enforceAskLimit(userId: string, tellerId: string) {
+    const row = await this.prisma.askUsage.findUnique({
+      where: { userId_tellerId_date: { userId, tellerId, date: today() } },
+    });
+    if ((row?.count || 0) >= ASK_DAILY_LIMIT_PER_TELLER)
+      throw new ForbiddenException('Daily Ask limit for this teller reached.');
+  }
+
+  private bumpCopilotCount(userId: string) {
+    return this.prisma.copilotUsage.upsert({
+      where: { userId_date: { userId, date: today() } },
+      update: { count: { increment: 1 } },
+      create: { userId, date: today(), count: 1 },
+    });
+  }
+
+  private bumpAskCount(userId: string, tellerId: string) {
+    return this.prisma.askUsage.upsert({
+      where: { userId_tellerId_date: { userId, tellerId, date: today() } },
+      update: { count: { increment: 1 } },
+      create: { userId, tellerId, date: today(), count: 1 },
+    });
   }
 }

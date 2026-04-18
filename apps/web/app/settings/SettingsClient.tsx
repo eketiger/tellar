@@ -144,10 +144,26 @@ export function SettingsClient({ workspace, user, members, usage, billing }: any
             ) : <p className="note">No billing info yet.</p>}
           </Panel>}
 
-          {tab === 'security' && <Panel title="Security">
-            <p className="note" style={{ lineHeight: 1.7 }}>
+          {tab === 'security' && <Panel title="Security & privacy">
+            <p className="note" style={{ lineHeight: 1.7, marginBottom: 20 }}>
               Sessions, 2FA and audit log live here. In prod: list all active sessions with IP/UA, revoke per-session, and show the last 90 days of membership changes.
             </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <a className="btn" href="/api/user/data-export" download>
+                Download my data (GDPR)
+              </a>
+              <button
+                className="btn"
+                style={{ borderColor: 'var(--bad)', color: 'var(--bad)' }}
+                onClick={async () => {
+                  if (!confirm('Delete account? This is a 30-day soft delete, then your data is purged forever.')) return;
+                  await api('/user/account', { method: 'DELETE' });
+                  location.href = '/';
+                }}
+              >
+                Delete my account
+              </button>
+            </div>
           </Panel>}
         </section>
       </div>

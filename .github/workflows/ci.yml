@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/tellar?schema=public' }}
+      JWT_SECRET: test-secret
+      NODE_ENV: test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tellar
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || pnpm install
+      - name: Generate Prisma client
+        run: pnpm --filter @tellar/api prisma generate
+      - name: Push schema
+        run: pnpm --filter @tellar/api prisma db push
+      - name: Typecheck backend
+        run: pnpm --filter @tellar/api lint
+      - name: Test backend with coverage
+        run: pnpm --filter @tellar/api test:cov -- --passWithNoTests
+      - name: Build backend
+        run: pnpm --filter @tellar/api build
+      - name: Build frontend
+        run: pnpm --filter @tellar/web build
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api
+          path: apps/api/coverage
+          if-no-files-found: ignore
