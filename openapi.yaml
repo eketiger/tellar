@@ -60,10 +60,10 @@ components:
       properties:
         id:       { type: string }
         idx:      { type: integer }
-        eyebrow:  { type: string, nullable: true }
+        eyebrow:  { type: [string, 'null'] }
         title:    { type: string }
-        subtitle: { type: string, nullable: true }
-        notes:    { type: string, nullable: true }
+        subtitle: { type: [string, 'null'] }
+        notes:    { type: [string, 'null'] }
     Share:
       type: object
       properties:

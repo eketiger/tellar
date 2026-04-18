@@ -1,0 +1,14 @@
+extends:
+  - recommended
+rules:
+  # Errors we care about
+  operation-summary: error
+  no-unused-components: warn
+  operation-description: warn
+
+  # Off — noisy and not blocking
+  info-license: off
+  no-server-example.com: off
+  tag-description: off
+  operation-operationId: off
+  operation-4xx-response: off
