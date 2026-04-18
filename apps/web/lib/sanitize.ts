@@ -10,17 +10,23 @@
  */
 
 const ALLOWED = new Set(['em', 'br', 'strong', 'i', 'b']);
+// Tags whose entire body must be discarded along with the tag.
+const STRIP_WITH_BODY = ['script', 'style', 'iframe', 'noscript', 'svg', 'math'];
 
 export function sanitizeSlideHtml(input: string | null | undefined): string {
   if (!input) return '';
-  // Strip any tag that's not in the allowlist. Tags are preserved as literal text
-  // so a careless edit doesn't silently lose content.
-  return String(input)
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<\s*\/?\s*([a-zA-Z0-9]+)[^>]*>/g, (match, tag) => {
-      const t = String(tag).toLowerCase();
-      if (!ALLOWED.has(t)) return '';
-      // For allowed tags, collapse to the bare tag (no attributes → no onerror, href, etc.)
-      return match.startsWith('</') ? `</${t}>` : `<${t}>`;
-    });
+  let out = String(input).replace(/<!--[\s\S]*?-->/g, '');
+  // Drop dangerous container tags AND their contents.
+  for (const tag of STRIP_WITH_BODY) {
+    const re = new RegExp(`<\\s*${tag}\\b[^>]*>[\\s\\S]*?<\\s*\\/\\s*${tag}\\s*>`, 'gi');
+    out = out.replace(re, '');
+    // Also strip any orphan opening tag of the same name (no closing).
+    out = out.replace(new RegExp(`<\\s*\\/?\\s*${tag}\\b[^>]*>`, 'gi'), '');
+  }
+  // Anything else: keep allowed tags bare, drop the rest (text content stays).
+  return out.replace(/<\s*\/?\s*([a-zA-Z0-9]+)[^>]*>/g, (match, tag) => {
+    const t = String(tag).toLowerCase();
+    if (!ALLOWED.has(t)) return '';
+    return match.startsWith('</') ? `</${t}>` : `<${t}>`;
+  });
 }
