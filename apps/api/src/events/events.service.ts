@@ -26,8 +26,8 @@ export class EventsService {
   }
 
   async funnel(tellerId: string) {
-    // Pull only the columns we need; the three counts run in parallel at the DB.
-    const [slides, slideViews, agentQueries, agentQueriesToday] = await Promise.all([
+    // Pull only the columns we need; the four counts run in parallel at the DB.
+    const [slides, slideViews, agentQueries, agentQueriesToday, agentEvents] = await Promise.all([
       this.prisma.slide.findMany({
         where: { tellerId },
         orderBy: { idx: 'asc' },
@@ -40,6 +40,12 @@ export class EventsService {
       this.prisma.event.count({ where: { tellerId, type: 'AGENT_QUERY' } }),
       this.prisma.event.count({
         where: { tellerId, type: 'AGENT_QUERY', at: { gte: new Date(Date.now() - 86_400_000) } },
+      }),
+      this.prisma.event.findMany({
+        where: { tellerId, type: 'AGENT_QUERY' },
+        orderBy: { at: 'desc' },
+        take: 500,
+        select: { meta: true },
       }),
     ]);
     const totalSlides = slides.length || 1;
@@ -108,6 +114,18 @@ export class EventsService {
       }))
       .sort((a, b) => b.slidesSeen - a.slidesSeen);
 
+    // Top agent questions — normalise on lowercase, keep the first-seen casing for display.
+    const qCounts = new Map<string, { display: string; count: number }>();
+    for (const e of agentEvents) {
+      const raw = String((e.meta as any)?.question || '').trim();
+      if (!raw) continue;
+      const key = raw.toLowerCase();
+      const existing = qCounts.get(key);
+      if (existing) existing.count += 1;
+      else qCounts.set(key, { display: raw, count: 1 });
+    }
+    const topQuestions = Array.from(qCounts.values()).sort((a, b) => b.count - a.count).slice(0, 8);
+
     return {
       totalSlides,
       uniqueViewers: uniqEmails.size,
@@ -115,6 +133,7 @@ export class EventsService {
       biggestDrop,
       agentQueries,
       agentQueriesToday,
+      topQuestions,
       avgSessionMs,
       funnel,
       viewers,
