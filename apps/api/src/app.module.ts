@@ -14,6 +14,7 @@ import { BillingModule } from './billing/billing.module';
 import { ViewerModule } from './viewer/viewer.module';
 import { AdminModule } from './admin/admin.module';
 import { GdprModule } from './gdpr/gdpr.module';
+import { SuperAdminModule } from './superadmin/superadmin.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { GdprModule } from './gdpr/gdpr.module';
     ViewerModule,
     AdminModule,
     GdprModule,
+    SuperAdminModule,
   ],
 })
 export class AppModule {}

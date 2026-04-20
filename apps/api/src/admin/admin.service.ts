@@ -92,11 +92,40 @@ export class AdminService {
     return this.prisma.user.update({ where: { id: userId }, data: { isSuspended } });
   }
 
+  async workspaceDetail(id: string) {
+    const ws = await this.prisma.workspace.findUnique({
+      where: { id },
+      include: {
+        owner: { select: { id: true, email: true, name: true, lastLoginAt: true, createdAt: true, provider: true } },
+        members: {
+          orderBy: { joinedAt: 'asc' },
+          include: { user: { select: { lastLoginAt: true } } },
+        },
+        usage: true,
+        billing: true,
+        tellers: {
+          where: { deletedAt: null },
+          orderBy: { updatedAt: 'desc' },
+          take: 20,
+          select: { id: true, title: true, revision: true, updatedAt: true, isPublished: true },
+        },
+      },
+    });
+    if (!ws) return null;
+    const [subs, invoices, eventCount, agentQueries] = await Promise.all([
+      this.prisma.subscription.findMany({ where: { userId: ws.ownerId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.invoice.findMany({ where: { userId: ws.ownerId }, orderBy: { createdAt: 'desc' }, take: 10 }),
+      this.prisma.event.count({ where: { teller: { workspaceId: id } } }),
+      this.prisma.event.count({ where: { teller: { workspaceId: id }, type: 'AGENT_QUERY' } }),
+    ]);
+    return { workspace: ws, subscriptions: subs, invoices, eventCount, agentQueries };
+  }
+
   async listWorkspaces() {
     return this.prisma.workspace.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        owner: { select: { id: true, email: true, name: true } },
+        owner: { select: { id: true, email: true, name: true, lastLoginAt: true } },
         _count: { select: { members: true, tellers: true } },
         usage: true,
       },

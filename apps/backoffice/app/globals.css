@@ -1,0 +1,77 @@
+/* Tellar design tokens + layout primitives — imported from the main app */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #0c0d0f; --bg-2: #131417; --panel: #15171b; --panel-2: #1a1c21;
+  --line: #23262c; --line-2: #2c3037; --line-3: #3a3f48;
+  --ink: #e8e6e1; --ink-2: #a8a69e; --ink-3: #6d6a63;
+  --accent: #f4b942; --accent-2: #e8956d; --good: #8cc88c; --bad: #d47a7a;
+  --violet: #9f8fd3; --blue: #7fa8d4;
+  --serif: 'Fraunces', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --sans: 'Inter Tight', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.45; min-height: 100vh; }
+a { color: inherit; text-decoration: none; }
+
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(1200px 600px at 85% -10%, rgba(244,185,66,.06), transparent 60%),
+              radial-gradient(800px 500px at 10% 110%, rgba(159,143,211,.05), transparent 60%);
+}
+
+.bo-top { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--line); background: rgba(12,13,15,.85); backdrop-filter: blur(12px); }
+.bo-brand { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 22px; letter-spacing: -.02em; color: var(--ink); }
+.bo-brand::first-letter { color: var(--accent); }
+.bo-tag { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; color: var(--bad); text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--bad); border-radius: 3px; margin-left: 12px; }
+.bo-right { display: flex; align-items: center; gap: 14px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); letter-spacing: .1em; text-transform: uppercase; }
+
+.bo-shell { max-width: 1400px; margin: 0 auto; padding: 28px; position: relative; z-index: 3; }
+.bo-head { margin-bottom: 30px; }
+.bo-head .kicker { font-family: var(--mono); font-size: 10px; color: var(--ink-3); letter-spacing: .25em; text-transform: uppercase; margin-bottom: 12px; }
+.bo-head h1 { font-family: var(--serif); font-weight: 300; font-size: 48px; letter-spacing: -.025em; line-height: 1.05; }
+.bo-head h1 em { font-style: italic; color: var(--accent); }
+.bo-head p { font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: 15px; margin-top: 8px; }
+
+.bo-nav { display: flex; gap: 4px; padding: 6px; background: rgba(12,13,15,.92); border: 1px solid var(--line-2); border-radius: 40px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 22px; width: fit-content; }
+.bo-nav a { padding: 8px 14px; color: var(--ink-2); border-radius: 40px; transition: all .2s; }
+.bo-nav a:hover { color: var(--ink); background: var(--panel); }
+.bo-nav a.active { color: #0c0d0f; background: var(--accent); }
+
+.panel { border: 1px solid var(--line); background: var(--panel); padding: 22px; position: relative; }
+.corner { position: absolute; width: 10px; height: 10px; border: 1px solid var(--line-2); }
+.corner.tl { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.corner.tr { top: -1px; right: -1px; border-left: none; border-bottom: none; }
+.corner.bl { bottom: -1px; left: -1px; border-right: none; border-top: none; }
+.corner.br { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+.section-head h2 { font-family: var(--serif); font-weight: 500; font-size: 18px; letter-spacing: -.01em; }
+.section-head h2 .num { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-right: 10px; letter-spacing: .2em; }
+.section-head .aux { font-family: var(--mono); font-size: 10px; color: var(--ink-3); letter-spacing: .12em; text-transform: uppercase; }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink); font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s; text-decoration: none; border-radius: 2px; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { background: var(--accent); color: #0c0d0f; border-color: var(--accent); }
+.btn-primary:hover { background: #e8ad3a; color: #0c0d0f; border-color: #e8ad3a; }
+.btn-ghost { background: transparent; border-color: var(--line); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.field { margin-bottom: 16px; }
+.field-label { font-family: var(--mono); font-size: 10px; letter-spacing: .15em; color: var(--ink-3); text-transform: uppercase; margin-bottom: 8px; display: block; }
+.field-input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); padding: 11px 14px; color: var(--ink); font-family: var(--sans); font-size: 14px; border-radius: 2px; outline: none; }
+.field-input:focus { border-color: var(--line-3); }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 22px; }
+.kpi { border: 1px solid var(--line); background: var(--panel); padding: 16px 14px; position: relative; overflow: hidden; }
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .4; }
+.kpi-label { font-family: var(--mono); font-size: 9px; letter-spacing: .2em; color: var(--ink-3); text-transform: uppercase; margin-bottom: 10px; }
+.kpi-value { font-family: var(--serif); font-weight: 400; font-size: 28px; letter-spacing: -.02em; line-height: 1; }
+.kpi-delta { font-family: var(--mono); font-size: 10px; margin-top: 8px; color: var(--ink-3); letter-spacing: .05em; }
+.kpi-delta.up { color: var(--good); }
+.kpi-delta.down { color: var(--bad); }
+
+.err { color: var(--bad); font-family: var(--mono); font-size: 11px; margin-top: 8px; letter-spacing: .05em; }
+.note { color: var(--ink-3); font-family: var(--mono); font-size: 10px; letter-spacing: .05em; }
+
+@media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }

@@ -30,10 +30,11 @@ async function bootstrap() {
     }
     return json({ limit: '10mb' })(req, res, next);
   });
-  app.enableCors({
-    origin: (process.env.WEB_ORIGIN || 'http://localhost:3000').split(','),
-    credentials: true,
-  });
+  const origins = [
+    ...(process.env.WEB_ORIGIN || 'http://localhost:3000').split(','),
+    ...(process.env.BACKOFFICE_ORIGIN || 'http://localhost:3001').split(','),
+  ];
+  app.enableCors({ origin: origins, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.setGlobalPrefix('api');
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });

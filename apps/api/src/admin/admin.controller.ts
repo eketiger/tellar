@@ -1,10 +1,9 @@
 import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
-import { JwtGuard } from '../auth/jwt.guard';
-import { AdminGuard } from '../auth/admin.guard';
+import { PlatformAdminGuard } from '../auth/platform-admin.guard';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
-@UseGuards(JwtGuard, AdminGuard)
+@UseGuards(PlatformAdminGuard)
 export class AdminController {
   constructor(private svc: AdminService) {}
 
@@ -31,6 +30,11 @@ export class AdminController {
   @Get('workspaces')
   workspaces() {
     return this.svc.listWorkspaces();
+  }
+
+  @Get('workspaces/:id')
+  workspaceDetail(@Param('id') id: string) {
+    return this.svc.workspaceDetail(id);
   }
 
   @Get('billing')
