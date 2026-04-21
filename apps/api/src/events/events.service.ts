@@ -27,7 +27,9 @@ export class EventsService {
 
   async funnel(tellerId: string) {
     // Pull only the columns we need; the four counts run in parallel at the DB.
-    const [slides, slideViews, agentQueries, agentQueriesToday, agentEvents] = await Promise.all([
+    // SLIDE_VIEW events drive the funnel + per-slide reach; SLIDE_DWELL events
+    // carry the actual dwell time per slide (SLIDE_VIEW has no dwellMs).
+    const [slides, slideViews, slideDwells, agentQueries, agentQueriesToday, agentEvents] = await Promise.all([
       this.prisma.slide.findMany({
         where: { tellerId },
         orderBy: { idx: 'asc' },
@@ -35,6 +37,10 @@ export class EventsService {
       }),
       this.prisma.event.findMany({
         where: { tellerId, type: 'SLIDE_VIEW' },
+        select: { sessionId: true, email: true, slideIdx: true, at: true },
+      }),
+      this.prisma.event.findMany({
+        where: { tellerId, type: 'SLIDE_DWELL' },
         select: { sessionId: true, email: true, slideIdx: true, dwellMs: true, at: true },
       }),
       this.prisma.event.count({ where: { tellerId, type: 'AGENT_QUERY' } }),
@@ -50,27 +56,36 @@ export class EventsService {
     ]);
     const totalSlides = slides.length || 1;
 
-    // Single pass over slideViews to build every aggregate.
+    // Single pass over slideViews to build reach-style aggregates.
     const perSlide: Map<number, Set<string | null>> = new Map();
     const sessions: Map<string, number> = new Map();
     const sessionDur: Map<string, number> = new Map();
     const perEmail: Map<string, { slidesSeen: Set<number>; dwellMs: number; lastSeen: number }> = new Map();
     const uniqEmails = new Set<string | null>();
+    const touchEmail = (email: string | null, at: Date) => {
+      uniqEmails.add(email);
+      const k = email || 'anonymous';
+      let v = perEmail.get(k);
+      if (!v) { v = { slidesSeen: new Set(), dwellMs: 0, lastSeen: 0 }; perEmail.set(k, v); }
+      v.lastSeen = Math.max(v.lastSeen, at.getTime());
+      return v;
+    };
     for (const e of slideViews) {
-      uniqEmails.add(e.email);
+      const v = touchEmail(e.email, e.at);
       if (e.slideIdx != null) {
         let bucket = perSlide.get(e.slideIdx);
         if (!bucket) { bucket = new Set(); perSlide.set(e.slideIdx, bucket); }
         bucket.add(e.email);
         sessions.set(e.sessionId, Math.max(sessions.get(e.sessionId) || 0, e.slideIdx));
+        v.slidesSeen.add(e.slideIdx);
       }
-      sessionDur.set(e.sessionId, (sessionDur.get(e.sessionId) || 0) + (e.dwellMs || 0));
-      const k = e.email || 'anonymous';
-      let v = perEmail.get(k);
-      if (!v) { v = { slidesSeen: new Set(), dwellMs: 0, lastSeen: 0 }; perEmail.set(k, v); }
-      if (e.slideIdx != null) v.slidesSeen.add(e.slideIdx);
-      v.dwellMs += e.dwellMs || 0;
-      v.lastSeen = Math.max(v.lastSeen, e.at.getTime());
+    }
+    // Fold the real dwell time (SLIDE_DWELL) into session + per-email totals.
+    for (const e of slideDwells) {
+      const v = touchEmail(e.email, e.at);
+      const ms = e.dwellMs || 0;
+      sessionDur.set(e.sessionId, (sessionDur.get(e.sessionId) || 0) + ms);
+      v.dwellMs += ms;
     }
 
     const totalSessions = sessions.size || 1;

@@ -27,6 +27,18 @@ export function ViewerClient({ slug }: { slug: string }) {
   const [token, setToken] = useState<string | null>(null);
   const [data, setData] = useState<ShareData | null>(null);
 
+  // One sessionId per browser session — survives React dev-mode double-mount
+  // and the SHARE_OPEN → Viewer transition so analytics stays a single row.
+  const sessionId = useMemo(() => {
+    if (typeof window === 'undefined') return `s_${Math.random().toString(36).slice(2, 10)}`;
+    const KEY = `tellar:viewer-session:${slug}`;
+    const existing = sessionStorage.getItem(KEY);
+    if (existing) return existing;
+    const fresh = `s_${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(KEY, fresh);
+    return fresh;
+  }, [slug]);
+
   async function authorize(e?: React.FormEvent) {
     e?.preventDefault();
     setGateErr(null);
@@ -38,7 +50,7 @@ export function ViewerClient({ slug }: { slug: string }) {
       setData(d);
       setPhase('viewer');
       navigator.sendBeacon?.('/api/events', new Blob(
-        [JSON.stringify({ type: 'SHARE_OPEN', tellerId: d.teller.id, shareId: d.share.id, sessionId: `s_${Math.random().toString(36).slice(2)}`, email })],
+        [JSON.stringify({ type: 'SHARE_OPEN', tellerId: d.teller.id, shareId: d.share.id, sessionId, email })],
         { type: 'application/json' },
       ));
     } catch (err) {
@@ -52,7 +64,7 @@ export function ViewerClient({ slug }: { slug: string }) {
   }
 
   if (phase === 'gate') return <GateOverlay email={email} setEmail={setEmail} passphrase={passphrase} setPassphrase={setPassphrase} reason={gateReason} err={gateErr} onSubmit={authorize} />;
-  return <Viewer data={data!} email={email} />;
+  return <Viewer data={data!} email={email} sessionId={sessionId} />;
 }
 
 function GateOverlay({ email, setEmail, passphrase, setPassphrase, reason, err, onSubmit }: any) {
@@ -92,15 +104,13 @@ function GateOverlay({ email, setEmail, passphrase, setPassphrase, reason, err, 
   );
 }
 
-function Viewer({ data, email }: { data: ShareData; email: string }) {
+function Viewer({ data, email, sessionId }: { data: ShareData; email: string; sessionId: string }) {
   const slides = data.teller.slides;
   const recs = data.teller.recordings;
   const perms = data.share.perms;
   const agentOn = perms.agent !== false;
   const showNarrator = perms.recording !== false;
   const showWatermark = perms.watermark !== false;
-
-  const sessionId = useMemo(() => `s_${Math.random().toString(36).slice(2, 10)}`, []);
   const [idx, setIdx] = useState(1);
   const [viewed, setViewed] = useState<Set<number>>(new Set([1]));
   const [chatOpen, setChatOpen] = useState(true);
