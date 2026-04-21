@@ -53,7 +53,8 @@ type HistoryEntry =
       inverse: Partial<Slide> & { layout?: any };
     }
   | { kind: 'duplicate'; newSlideId: string }
-  | { kind: 'reorder'; prevOrder: string[] };
+  | { kind: 'reorder'; prevOrder: string[] }
+  | { kind: 'bulkBg'; before: Array<{ slideId: string; background: any }>; next: any };
 
 const HISTORY_LIMIT = 80;
 const COALESCE_MS = 600;
@@ -274,6 +275,8 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       });
     } else if (entry.kind === 'reorder') {
       await applyReorderSwap(entry);
+    } else if (entry.kind === 'bulkBg') {
+      applyBulkBg(entry.before);
     }
     flashToast('Undo');
   }
@@ -306,6 +309,10 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       return;
     } else if (entry.kind === 'reorder') {
       await applyReorderSwap(entry);
+    } else if (entry.kind === 'bulkBg') {
+      // Re-apply the forward op: every slide gets entry.next.
+      const entries = entry.before.map(e => ({ slideId: e.slideId, background: entry.next }));
+      applyBulkBg(entries);
     }
     flashToast('Redo');
   }
@@ -414,6 +421,35 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     queueSave(active.id, { background: { kind } });
   }
 
+  function applyThemeToAll(kind: BackgroundKind) {
+    const nextBg = { kind };
+    const before = teller.slides.map(s => ({ slideId: s.id, background: s.background ?? null }));
+    undoStackRef.current.push({ kind: 'bulkBg', before, next: nextBg });
+    if (undoStackRef.current.length > HISTORY_LIMIT) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    lastPushRef.current = null;
+    setTeller(t => ({ ...t, slides: t.slides.map(s => ({ ...s, background: nextBg })) }));
+    setSaveState('saving');
+    Promise.all(teller.slides.map(s =>
+      api(`/slides/${s.id}`, { method: 'PATCH', json: { background: nextBg } }),
+    )).finally(() => setSaveState('saved'));
+    flashToast(`Theme → whole deck`);
+  }
+
+  function applyBulkBg(entries: Array<{ slideId: string; background: any }>) {
+    setTeller(t => ({
+      ...t,
+      slides: t.slides.map(s => {
+        const m = entries.find(e => e.slideId === s.id);
+        return m ? { ...s, background: m.background } : s;
+      }),
+    }));
+    setSaveState('saving');
+    Promise.all(entries.map(e =>
+      api(`/slides/${e.slideId}`, { method: 'PATCH', json: { background: e.background ?? { kind: 'cream' } } }),
+    )).finally(() => setSaveState('saved'));
+  }
+
   async function applyCopilot(payload: { title?: string; subtitle?: string; notes?: string }) {
     if (!active) return;
     const patch: any = {};
@@ -478,11 +514,19 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
               <button
                 key={t.kind}
                 className="tool-btn"
-                title={t.label}
-                onClick={() => setBackground(t.kind)}
+                title={`${t.label} — click: this slide · shift+click: whole deck`}
+                onClick={e => (e.shiftKey ? applyThemeToAll(t.kind) : setBackground(t.kind))}
                 style={{ width: 22, height: 22, minWidth: 22, padding: 0, border: '1px solid ' + (activeBg.kind === t.kind ? 'var(--accent)' : 'var(--line-2)'), background: t.swatch, borderRadius: '50%', marginLeft: 2 }}
               />
             ))}
+            <button
+              className="tool-btn"
+              title="Apply current theme to every slide"
+              onClick={() => applyThemeToAll((activeBg.kind || 'cream') as BackgroundKind)}
+              style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.15em', marginLeft: 6, textTransform: 'uppercase', padding: '0 8px', height: 22 }}
+            >
+              apply all
+            </button>
             <div style={{ flex: 1 }} />
             <span
               title={saveState === 'saved' ? 'All changes saved' : 'Saving…'}
