@@ -375,6 +375,400 @@ export const TEMPLATES: Template[] = [
       },
     ],
   },
+
+  // --------------------------------------------------------------
+  // 4. B2B SaaS Sales Pitch — Linear / Retool style
+  // --------------------------------------------------------------
+  {
+    slug: 'b2b-saas-sales',
+    title: 'B2B SaaS Sales Pitch',
+    tagline: 'The 9-slide sales deck that closes in the demo call.',
+    description:
+      'Built for AEs who send the deck before the meeting. Opens with their pain, not your product; lands the ROI number before slide 6; ends with a calendar CTA. Modeled on the sales motions that took Linear and Retool from $0 to $50M ARR.',
+    inspiredBy: 'Linear AE playbook · Retool enterprise pitch · Gong.io call teardowns',
+    category: 'sales',
+    seoKeywords: [
+      'B2B SaaS sales pitch template',
+      'SaaS sales deck template',
+      'enterprise sales pitch deck',
+      'software sales deck template',
+    ],
+    slides: [
+      {
+        layoutId: 'cover',
+        layout: {
+          eyebrow: 'prepared for · <em>acme corp</em>',
+          title: 'Ship faster <em>without</em> breaking production.',
+          subtitle: 'How <b>Product</b> cuts your release cycle from <em>2 weeks to 2 days</em>.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'headline',
+        layout: {
+          eyebrow: '01 · the pain',
+          title: 'You\'re losing <em>12 engineer-days</em> per release.',
+          subtitle: 'Your team runs 14 manual QA steps across 3 tools. 40% of the work is repeated.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'comparison',
+        layout: {
+          headline: '<em>Today</em> vs. with Product.',
+          leftTitle: 'Your stack today',
+          rightTitle: 'With Product',
+          left: ['14 manual QA steps', 'Jira · Notion · email chains', 'Release Fridays only', '12 engineer-days / release'],
+          right: ['Zero manual QA steps', 'One surface, one source of truth', 'Ship any day, any hour', '<em>2 engineer-days</em> / release'],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'How it <em>works</em>.',
+          bullets: [
+            'Drop a <b>GitHub PR</b> and we auto-generate test paths.',
+            'Run in parallel on <em>every</em> commit, not just merge.',
+            'Slack + Linear updates when a check fails.',
+            'Rollback in one click if prod starts drifting.',
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'quote',
+        layout: {
+          quote:
+            'We were shipping twice a month. After six weeks with Product we\'re shipping <em>four times a week</em> with fewer incidents.',
+          author: 'Carolina Méndez',
+          role: 'VP Engineering · Mercado Libre',
+        },
+        background: { kind: 'midnight' },
+      },
+      {
+        layoutId: 'bigNumber',
+        layout: {
+          eyebrow: 'your ROI',
+          prefix: '$',
+          number: '840',
+          unit: 'K / yr',
+          caption: 'Saved at 40 engineers × $220 blended × 12 days / release × 26 releases.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'twoColumn',
+        layout: {
+          headline: 'Pricing.',
+          leftTitle: 'Team',
+          leftBody: '$29 / user / month · 10+ seats · Slack + Linear integrations · 30-day trial.',
+          rightTitle: 'Enterprise',
+          rightBody: '$59 / user / month · SSO · audit log · dedicated CSM · <em>annual</em> only.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'Next <em>steps</em>.',
+          bullets: [
+            '30-min technical deep-dive with your platform lead.',
+            'Two-week pilot on a single team.',
+            'Joint ROI readout with your VP Eng + our founder.',
+          ],
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'thanks',
+        layout: { title: 'Let\'s <em>ship</em>.' },
+        background: { kind: 'paper' },
+      },
+    ],
+  },
+
+  // --------------------------------------------------------------
+  // 5. Consumer Product Launch — Superhuman / Notion style
+  // --------------------------------------------------------------
+  {
+    slug: 'consumer-product-launch',
+    title: 'Consumer Product Launch',
+    tagline: 'The 7-slide launch deck for a consumer moment.',
+    description:
+      'For the day you post "Today we\'re launching X." Short, image-forward, with the ask above the fold. Built for the press loop, the crowdfund, and the ProductHunt front page.',
+    inspiredBy: 'Superhuman waitlist era · Arc browser launch · Raycast v2',
+    category: 'internal',
+    seoKeywords: [
+      'product launch deck template',
+      'consumer product launch slides',
+      'ProductHunt launch deck',
+      'SaaS launch announcement template',
+    ],
+    slides: [
+      {
+        layoutId: 'cover',
+        layout: {
+          eyebrow: 'launching · march 2026',
+          title: 'Today we\'re <em>shipping</em> it.',
+          subtitle: 'The thing we\'ve been quietly working on for 14 months.',
+        },
+        background: { kind: 'midnight' },
+      },
+      {
+        layoutId: 'headline',
+        layout: {
+          eyebrow: 'why it matters',
+          title: 'The <em>everyday thing</em> you do, <em>reimagined</em>.',
+          subtitle: 'Everything since the iPhone has made the daily ritual cheaper, not better. This makes it better.',
+        },
+        background: { kind: 'midnight' },
+      },
+      {
+        layoutId: 'imageFull',
+        layout: {
+          eyebrow: 'the product',
+          title: 'This is what it <em>feels like</em>.',
+          caption: 'Swap this for a screenshot · a hero shot · or a 5-second Loom loop.',
+        },
+        background: { kind: 'image' },
+      },
+      {
+        layoutId: 'grid',
+        layout: {
+          title: 'Three things it <em>unlocks</em>.',
+          items: [
+            { title: 'Faster', body: '10× the ritual · zero thinking' },
+            { title: 'Quieter', body: 'No notifications · no decisions' },
+            { title: 'Yours', body: 'Private by default · export anything' },
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bigNumber',
+        layout: {
+          eyebrow: 'early access',
+          number: '8,200',
+          unit: 'on the waitlist',
+          caption: 'Inviting the first <em>500</em> this week · rolling batches after.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'twoColumn',
+        layout: {
+          headline: 'Pricing.',
+          leftTitle: 'Free',
+          leftBody: 'Everything you need. Forever.',
+          rightTitle: 'Pro · $8/mo',
+          rightBody: 'Unlimited history, priority sync, supporter badge.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'thanks',
+        layout: { title: 'Try it <em>today</em>.' },
+        background: { kind: 'midnight' },
+      },
+    ],
+  },
+
+  // --------------------------------------------------------------
+  // 6. Monthly Investor Update — Terrence Rohan format
+  // --------------------------------------------------------------
+  {
+    slug: 'investor-update',
+    title: 'Monthly Investor Update',
+    tagline: 'The 8-slide update format every LP wishes they got.',
+    description:
+      'The update your investors actually read — numbers on top, asks up front, honest about what didn\'t work. Based on the monthly cadence YC partners and Terrence Rohan publicly recommend.',
+    inspiredBy: 'Terrence Rohan "What a great investor update looks like" · Bridge funds',
+    category: 'internal',
+    seoKeywords: [
+      'investor update template',
+      'monthly investor update deck',
+      'startup investor update template',
+      'board-style investor update',
+    ],
+    slides: [
+      {
+        layoutId: 'cover',
+        layout: {
+          eyebrow: 'monthly update · feb 2026',
+          title: 'Your <em>company</em>.',
+          subtitle: 'Short. Honest. Numbered.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bigNumber',
+        layout: {
+          eyebrow: 'headline metric',
+          prefix: '$',
+          number: '1.8',
+          unit: 'M ARR',
+          caption: '<em>+14%</em> MoM · 112% NRR · 38 customers (+7 net).',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'chart',
+        layout: {
+          title: 'ARR · last <em>12 months</em>.',
+          chartKind: 'line',
+          data: [
+            { label: 'Mar', value: 320 },
+            { label: 'Apr', value: 410 },
+            { label: 'May', value: 520 },
+            { label: 'Jun', value: 640 },
+            { label: 'Jul', value: 780 },
+            { label: 'Aug', value: 920 },
+            { label: 'Sep', value: 1080 },
+            { label: 'Oct', value: 1240 },
+            { label: 'Nov', value: 1390 },
+            { label: 'Dec', value: 1510 },
+            { label: 'Jan', value: 1630 },
+            { label: 'Feb', value: 1800 },
+          ],
+          caption: 'ARR in $K · no paid acquisition · inbound-led.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'What <em>shipped</em>.',
+          bullets: [
+            'Mobile app went GA on iOS + Android.',
+            'Enterprise SSO + audit log for contracts over $30K.',
+            'Partnership with LargeCo — now referenced publicly.',
+            'Switched to <em>usage</em>-based pricing for the starter tier.',
+          ],
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'What <em>didn\'t work</em>.',
+          bullets: [
+            'Outbound pilot on SMB — <em>killed it</em> after 4 weeks.',
+            'First EMEA hire accepted then declined day 1.',
+            'API spec change broke 3 integrations · hotfix shipped.',
+          ],
+        },
+        background: { kind: 'paper' },
+        notes: 'The "what did not work" slide is the one LPs actually trust you from. Be specific.',
+      },
+      {
+        layoutId: 'grid',
+        layout: {
+          title: 'Team · we\'re <em>hiring</em>.',
+          items: [
+            { title: 'Senior Eng', body: 'Rails · infra' },
+            { title: 'Staff Eng', body: 'AI / RAG' },
+            { title: 'Founding AE', body: 'NY · SF' },
+            { title: 'Head of Ops', body: 'remote · SA/EU' },
+          ],
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'Asks.',
+          bullets: [
+            'Warm intros to <em>VP Eng @ 500-1000 person</em> SaaS companies.',
+            'Candidates for the Staff AI role — pinging you in LinkedIn.',
+            'Feedback on a new pricing model attached in appendix.',
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'thanks',
+        layout: { title: 'Thank <em>you</em>.' },
+        background: { kind: 'cream' },
+      },
+    ],
+  },
+
+  // --------------------------------------------------------------
+  // 7. Customer Case Study — the proof deck for sales enablement
+  // --------------------------------------------------------------
+  {
+    slug: 'customer-case-study',
+    title: 'Customer Case Study',
+    tagline: 'A 6-slide proof deck your sales team can ship tomorrow.',
+    description:
+      'Turn a successful deployment into a shareable artifact. Problem → solution → before/after → the quote → the ask. Designed for the AE who needs to send a single link to de-risk the next deal.',
+    inspiredBy: 'Gong customer stories · Stripe customer pages · Notion at-a-glance',
+    category: 'sales',
+    seoKeywords: [
+      'customer case study template',
+      'B2B SaaS case study template',
+      'customer success deck template',
+      'sales enablement case study',
+    ],
+    slides: [
+      {
+        layoutId: 'cover',
+        layout: {
+          eyebrow: 'case study · feb 2026',
+          title: 'How <em>Kova</em> raised a Series A in <em>three weeks</em>.',
+          subtitle: 'With one Tellar link · shared with 14 funds · 11 took meetings.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'headline',
+        layout: {
+          eyebrow: 'the challenge',
+          title: 'A traditional process <em>would have taken 3 months</em>.',
+          subtitle: 'Kova had product-market fit but couldn\'t schedule 14 first-meetings fast enough.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'comparison',
+        layout: {
+          headline: '<em>Before</em> vs. with Tellar.',
+          leftTitle: 'PDF deck + email',
+          rightTitle: 'Tellar link',
+          left: ['No visibility into opens', 'No idea which slide hit', 'Q&A waited for a call', '3-month cycle'],
+          right: ['Every view tracked', 'Slide 7 highlighted as drop-off', 'Agent answered Qs live', '<em>21-day</em> cycle'],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bigNumber',
+        layout: {
+          eyebrow: 'the result',
+          prefix: '$',
+          number: '6',
+          unit: 'M raised',
+          caption: '21 days from deck sent to term sheet signed · <em>14×</em> faster than their last round.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'quote',
+        layout: {
+          quote:
+            'Three investor meetings in 48 hours. One of them re-watched slide 4 twice before the call. <em>That slide</em> was the deal.',
+          author: 'Nora Álvarez',
+          role: 'founder · Kova',
+        },
+        background: { kind: 'midnight' },
+      },
+      {
+        layoutId: 'thanks',
+        layout: { title: 'Your turn <em>next</em>.' },
+        background: { kind: 'paper' },
+      },
+    ],
+  },
 ];
 
 export function getTemplate(slug: string): Template | undefined {
