@@ -49,7 +49,8 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [tab, setTab] = useState<Tab>('layout');
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
   const [toast, setToast] = useState<string | null>(null);
-  const [showPicker, setShowPicker] = useState<'new' | 'switch' | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const active = teller.slides.find(s => s.id === activeId);
@@ -78,7 +79,6 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     setTeller(t => ({ ...t, slides: [...t.slides, created] }));
     setActiveId(created.id);
     await api(`/slides/${created.id}`, { method: 'PATCH', json: { layoutId, background: created.background } });
-    setShowPicker(null);
     flashToast(`${LAYOUTS[layoutId]?.label || 'Slide'} added`);
   }
 
@@ -105,7 +105,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       if (currentSlots[slotName] != null) nextSlots[slotName] = currentSlots[slotName];
     }
     queueSave(active.id, { layoutId: nextLayoutId, layout: nextSlots, background: active.background || { kind: nextLayout.defaultBg } });
-    setShowPicker(null);
+    setShowPicker(false);
     flashToast(`Layout → ${nextLayout.label}`);
   }
 
@@ -149,7 +149,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
         <aside className="slide-list">
           <div className="sl-head">
             <h3>Slides · {teller.slides.length}</h3>
-            <button onClick={() => setShowPicker('new')} title="Add slide">+</button>
+            <button onClick={() => addSlide()} title="Add slide">+</button>
           </div>
           <div>
             {teller.slides.map(s => {
@@ -173,7 +173,12 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           <div className="canvas-toolbar">
             <span className="tool-label">slide {String(active?.idx ?? 0).padStart(2, '0')}</span>
             <div className="tool-divider" />
-            <button className="tool-btn" onClick={() => setShowPicker('switch')} title="Change layout">
+            <button
+              ref={layoutBtnRef}
+              className={`tool-btn${showPicker ? ' active' : ''}`}
+              onClick={() => setShowPicker(p => !p)}
+              title="Change layout"
+            >
               <span style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.1em' }}>
                 {LAYOUTS[activeLayoutId]?.label || '—'} ▾
               </span>
@@ -285,8 +290,9 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       {showPicker && (
         <LayoutPicker
           current={activeLayoutId}
-          onPick={showPicker === 'new' ? addSlide : switchLayout}
-          onCancel={() => setShowPicker(null)}
+          anchorRef={layoutBtnRef}
+          onPick={switchLayout}
+          onCancel={() => setShowPicker(false)}
         />
       )}
 
