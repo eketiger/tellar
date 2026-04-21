@@ -8,9 +8,9 @@
 .sl-head button:hover { border-color: var(--accent); color: var(--accent); }
 
 .slide-thumb { display: flex; gap: 10px; margin-bottom: 8px; cursor: pointer; padding: 6px; border-radius: 3px; transition: background .2s; position: relative; border: none; background: transparent; width: 100%; text-align: left; align-items: stretch; }
-.slide-thumb-dup { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; background: rgba(12,13,15,.6); border: 1px solid rgba(255,255,255,.15); color: #f6f3ed; cursor: pointer; border-radius: 2px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s, background .15s; padding: 0; }
-.slide-thumb:hover .slide-thumb-dup { opacity: 1; }
-.slide-thumb-dup:hover { background: var(--accent); color: #0c0d0f; border-color: var(--accent); }
+.slide-thumb-del { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; background: rgba(12,13,15,.6); border: 1px solid rgba(255,255,255,.15); color: #f6f3ed; cursor: pointer; border-radius: 2px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s, background .15s, color .15s, border-color .15s; padding: 0; }
+.slide-thumb:hover .slide-thumb-del { opacity: 1; }
+.slide-thumb-del:hover { background: var(--bad); color: #fff; border-color: var(--bad); }
 .slide-thumb:hover { background: var(--panel); }
 .slide-thumb.active { background: var(--panel); }
 .slide-thumb.dragging { z-index: 10; box-shadow: 0 10px 28px rgba(0,0,0,.5); cursor: grabbing; }

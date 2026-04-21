@@ -529,8 +529,9 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                     slide={thumbSlide(s)}
                     isActive={s.id === activeId}
                     hasRec={teller.recordings.some((r: any) => r.slideId === s.id)}
+                    canDelete={teller.slides.length > 1}
                     onSelect={() => setActiveId(s.id)}
-                    onDuplicate={() => duplicateSlide(s.id)}
+                    onDelete={() => removeSlide(s.id)}
                   />
                 ))}
               </div>
@@ -725,14 +726,16 @@ function SortableSlideThumb({
   slide,
   isActive,
   hasRec,
+  canDelete,
   onSelect,
-  onDuplicate,
+  onDelete,
 }: {
   slide: Slide;
   isActive: boolean;
   hasRec: boolean;
+  canDelete: boolean;
   onSelect: () => void;
-  onDuplicate: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: slide.id });
   const style: React.CSSProperties = {
@@ -756,17 +759,18 @@ function SortableSlideThumb({
         </div>
         {hasRec && <span className="st-rec-badge" />}
       </div>
-      <button
-        className="slide-thumb-dup"
-        title="Duplicate slide (⌘D)"
-        onPointerDown={e => e.stopPropagation()}
-        onClick={e => { e.stopPropagation(); onDuplicate(); }}
-      >
-        <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.2}>
-          <rect x={1} y={1} width={6} height={6} />
-          <rect x={3} y={3} width={6} height={6} />
-        </svg>
-      </button>
+      {canDelete && (
+        <button
+          className="slide-thumb-del"
+          title="Delete slide"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+        >
+          <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.4}>
+            <path d="M2 2l6 6M8 2l-6 6" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
