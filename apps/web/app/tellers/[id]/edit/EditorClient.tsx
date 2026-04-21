@@ -27,7 +27,8 @@ import { LayoutPicker } from './LayoutPicker';
 import { PresentMode } from './PresentMode';
 import { MarkdownImport, type ParsedSlide } from './MarkdownImport';
 import { GradientPicker } from './GradientPicker';
-import { LAYOUTS, RenderSlide, type Background, type BackgroundKind } from '@/lib/slide-layouts';
+import { FormatToolbar, execInlineCmd } from './FormatToolbar';
+import { LAYOUTS, RenderSlide, readFontFamily, readFontScale, type Background, type BackgroundKind, type FontFamily } from '@/lib/slide-layouts';
 import './editor.css';
 
 interface Slide {
@@ -195,6 +196,16 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           e.preventDefault();
           (document.activeElement as HTMLElement | null)?.blur?.();
           pasteSlot();
+          return;
+        }
+        // Bold / italic / emphasis only apply while a contentEditable is focused.
+        // We intercept to force <em> for emphasis (vs the browser's default <i>).
+        if (editable && k === 'b') { e.preventDefault(); execInlineCmd('bold'); return; }
+        if (editable && k === 'i') { e.preventDefault(); execInlineCmd('italic'); return; }
+        if (editable && k === 'e') {
+          e.preventDefault();
+          const accentStr = typeof activeSlots._accent === 'string' ? activeSlots._accent : undefined;
+          execInlineCmd('emphasis', accentStr);
           return;
         }
         if (editable) return;
@@ -453,6 +464,18 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     updateSlots({ ...activeSlots, [name]: value });
   }
 
+  function applyFormatChange(patch: { fontFamily?: FontFamily; fontScale?: number; accent?: string | null }) {
+    if (!active) return;
+    const next = { ...activeSlots };
+    if (patch.fontFamily !== undefined) next._fontFamily = patch.fontFamily;
+    if (patch.fontScale !== undefined) next._fontScale = patch.fontScale;
+    if (patch.accent !== undefined) {
+      if (patch.accent === null) delete next._accent;
+      else next._accent = patch.accent;
+    }
+    updateSlots(next);
+  }
+
   function setBackground(kind: BackgroundKind) {
     if (!active) return;
     queueSave(active.id, { background: { kind } });
@@ -554,6 +577,13 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                 {LAYOUTS[activeLayoutId]?.label || '—'} ▾
               </span>
             </button>
+            <div className="tool-divider" />
+            <FormatToolbar
+              fontFamily={readFontFamily(activeSlots)}
+              fontScale={readFontScale(activeSlots)}
+              accent={typeof activeSlots._accent === 'string' ? activeSlots._accent : null}
+              onChange={applyFormatChange}
+            />
             <div className="tool-divider" />
             <span className="tool-label">theme</span>
             {THEMES.map(t => (

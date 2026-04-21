@@ -77,25 +77,57 @@ function hexLuminance(hex: string): number {
 
 type Theme = typeof THEMES.cream;
 
-function themeFor(bg: Background | undefined): { theme: Theme; wrapperStyle: CSSProperties } {
+// ---------------------------------------------------------------------------
+// Per-slide formatting overrides live in the slot bag under "_"-prefixed keys
+// so they don't collide with any layout's named slots and get skipped by the
+// copy-paste slot mechanism automatically.
+// ---------------------------------------------------------------------------
+export type FontFamily = 'serif' | 'sans' | 'mono';
+const FONT_VAR: Record<FontFamily, string> = {
+  serif: 'var(--serif)',
+  sans: 'var(--sans)',
+  mono: 'var(--mono)',
+};
+
+export function readFontFamily(slots?: Slots): FontFamily {
+  const v = slots?._fontFamily;
+  return v === 'sans' || v === 'mono' ? v : 'serif';
+}
+export function readFontScale(slots?: Slots): number {
+  const s = Number(slots?._fontScale);
+  if (!Number.isFinite(s)) return 1;
+  // Clamp so an accidental large value can't break the layout.
+  return Math.min(1.4, Math.max(0.75, s));
+}
+function primaryFamily(slots?: Slots): string {
+  return FONT_VAR[readFontFamily(slots)];
+}
+function accentOverride(slots?: Slots): string | null {
+  const v = (slots?._accent || '').toString().trim();
+  if (!/^#?[0-9a-fA-F]{6}$/.test(v)) return null;
+  return v.startsWith('#') ? v : `#${v}`;
+}
+
+function themeFor(bg: Background | undefined, slots?: Slots): { theme: Theme; wrapperStyle: CSSProperties } {
   const kind = bg?.kind || 'cream';
+  let base: Theme;
+  let wrapperStyle: CSSProperties;
   if (kind === 'gradient') {
     const from = bg?.from || '#c89a3a';
     const to = bg?.to || '#0c1220';
     const angle = bg?.angle ?? 135;
-    // Heuristic: if both stops are light, flip to the cream theme so text stays readable.
     const avgLum = (hexLuminance(from) + hexLuminance(to)) / 2;
-    const theme = avgLum > 0.55 ? THEMES.cream : THEMES.gradient;
-    return {
-      theme,
-      wrapperStyle: { background: `linear-gradient(${angle}deg, ${from}, ${to})`, color: theme.ink },
+    base = avgLum > 0.55 ? THEMES.cream : THEMES.gradient;
+    wrapperStyle = { background: `linear-gradient(${angle}deg, ${from}, ${to})`, color: base.ink };
+  } else {
+    base = THEMES[kind];
+    wrapperStyle = {
+      background: kind === 'image' && bg?.imageUrl ? `url(${bg.imageUrl}) center/cover` : base.bg,
+      color: base.ink,
     };
   }
-  const theme = THEMES[kind];
-  const wrapperStyle: CSSProperties = {
-    background: kind === 'image' && bg?.imageUrl ? `url(${bg.imageUrl}) center/cover` : theme.bg,
-    color: theme.ink,
-  };
+  const accentHex = accentOverride(slots);
+  const theme: Theme = accentHex ? { ...base, accent: accentHex } : base;
   return { theme, wrapperStyle };
 }
 
@@ -282,24 +314,24 @@ function ListSlot({
 // ---------------------------------------------------------------------------
 
 const CoverLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '80px 90px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', gap: 28 }}>
       <TextSlot name="eyebrow" value={slots.eyebrow} theme={theme} edit={edit} placeholder="eyebrow" style={eyebrowStyle(theme)} />
-      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Main title" style={titleStyle(theme, 110)} />
-      <TextSlot name="subtitle" value={slots.subtitle} theme={theme} edit={edit} placeholder="Subtitle" style={subStyle(theme)} />
+      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Main title" style={titleStyle(theme, 110, slots)} />
+      <TextSlot name="subtitle" value={slots.subtitle} theme={theme} edit={edit} placeholder="Subtitle" style={subStyle(theme, slots)} />
     </div>
   );
 };
 
 const HeadlineLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 80px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
       <TextSlot name="eyebrow" value={slots.eyebrow} theme={theme} edit={edit} placeholder="eyebrow" style={eyebrowStyle(theme)} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Headline" style={titleStyle(theme, 76)} />
-        <TextSlot name="subtitle" value={slots.subtitle} theme={theme} edit={edit} placeholder="Subtitle" style={subStyle(theme)} />
+        <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Headline" style={titleStyle(theme, 76, slots)} />
+        <TextSlot name="subtitle" value={slots.subtitle} theme={theme} edit={edit} placeholder="Subtitle" style={subStyle(theme, slots)} />
       </div>
       <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: theme.eyebrow, display: 'flex', justifyContent: 'space-between' }}>
         <span>tellar</span>
@@ -309,7 +341,7 @@ const HeadlineLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; ed
 };
 
 const BigNumberLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
       <TextSlot name="eyebrow" value={slots.eyebrow} theme={theme} edit={edit} placeholder="eyebrow" style={eyebrowStyle(theme)} />
@@ -318,16 +350,16 @@ const BigNumberLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
         <TextSlot name="number" value={slots.number || (edit ? '' : '—')} theme={theme} edit={edit} placeholder="1.4" style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(80px, 14vw, 220px)', fontWeight: 400, lineHeight: 1, letterSpacing: '-.04em', color: theme.ink, minWidth: 80 }} />
         <TextSlot name="unit" value={slots.unit} theme={theme} edit={edit} placeholder="M ARR" style={{ fontFamily: 'var(--serif)', fontSize: 56, color: theme.accent, fontStyle: 'italic', minWidth: 40 }} />
       </div>
-      <TextSlot name="caption" value={slots.caption} theme={theme} edit={edit} placeholder="Caption" style={subStyle(theme)} />
+      <TextSlot name="caption" value={slots.caption} theme={theme} edit={edit} placeholder="Caption" style={subStyle(theme, slots)} />
     </div>
   );
 };
 
 const TwoColumnLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 80px', display: 'flex', flexDirection: 'column', gap: 36 }}>
-      <TextSlot name="headline" value={slots.headline} theme={theme} edit={edit} placeholder="The wedge." style={titleStyle(theme, 56)} />
+      <TextSlot name="headline" value={slots.headline} theme={theme} edit={edit} placeholder="The wedge." style={titleStyle(theme, 56, slots)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 50, marginTop: 'auto', flex: 1 }}>
         {[0, 1].map(i => {
           const titleKey = i === 0 ? 'leftTitle' : 'rightTitle';
@@ -348,7 +380,7 @@ const TwoColumnLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
 };
 
 const QuoteLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   const quoteStyle: CSSProperties = { fontFamily: 'var(--serif)', fontSize: 'clamp(40px, 5.5vw, 72px)', fontWeight: 300, lineHeight: 1.1, letterSpacing: '-.02em', color: theme.ink };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
@@ -368,7 +400,7 @@ const QuoteLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?
 };
 
 const ImageFullLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   const overlayTheme = { ...theme, eyebrow: '#f6f3ed', ink: '#f6f3ed', sub: '#e8e6e1' };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -387,13 +419,13 @@ const ImageFullLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
 };
 
 const ImageRightLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
       <div style={{ padding: '70px 60px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 20 }}>
         <TextSlot name="eyebrow" value={slots.eyebrow} theme={theme} edit={edit} placeholder="eyebrow" style={eyebrowStyle(theme)} />
-        <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 56)} />
-        <TextSlot name="body" value={slots.body} theme={theme} edit={edit} placeholder="Body" multiline style={subStyle(theme)} />
+        <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 56, slots)} />
+        <TextSlot name="body" value={slots.body} theme={theme} edit={edit} placeholder="Body" multiline style={subStyle(theme, slots)} />
       </div>
       <div style={{ position: 'relative', background: '#0c0d0f', overflow: 'hidden' }}>
         {slots.image?.url
@@ -406,12 +438,12 @@ const ImageRightLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; 
 };
 
 const BulletsLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   const bullets: string[] = Array.isArray(slots.bullets) ? slots.bullets : [];
   const lineStyle: CSSProperties = { fontFamily: 'var(--serif)', fontSize: 22, color: theme.ink, lineHeight: 1.45, flex: 1 };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 90px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 30 }}>
-      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 56)} />
+      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 56, slots)} />
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <ListSlot
           values={bullets}
@@ -437,12 +469,12 @@ const BulletsLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edi
 };
 
 const GridLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   const items: Array<{ title?: string; body?: string; image?: { url?: string } }> = Array.isArray(slots.items) ? slots.items : [];
   const update = (next: typeof items) => edit?.onSlotChange('items', next);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '60px 70px', display: 'flex', flexDirection: 'column', gap: 30 }}>
-      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 44)} />
+      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 44, slots)} />
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
         {items.slice(0, 6).map((it, i) => (
           <div key={i} style={{ border: `1px solid ${theme.eyebrow}22`, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
@@ -497,13 +529,13 @@ const GridLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?:
 };
 
 const ComparisonLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   const left: string[] = Array.isArray(slots.left) ? slots.left : [];
   const right: string[] = Array.isArray(slots.right) ? slots.right : [];
   const lineStyle: CSSProperties = { fontFamily: 'var(--serif)', fontSize: 17, color: theme.ink, lineHeight: 1.45, flex: 1 };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '60px 70px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <TextSlot name="headline" value={slots.headline} theme={theme} edit={edit} placeholder="Before vs. after." style={titleStyle(theme, 40)} />
+      <TextSlot name="headline" value={slots.headline} theme={theme} edit={edit} placeholder="Before vs. after." style={titleStyle(theme, 40, slots)} />
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40 }}>
         {[
           { titleKey: 'leftTitle',  listKey: 'left',  items: left,  icon: '✕', color: theme.sub,    defaultTitle: 'Before' },
@@ -554,12 +586,12 @@ function parseVideoUrl(url: string): { provider: 'youtube' | 'loom' | null; embe
 }
 
 const VideoEmbedLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   const { embedUrl } = parseVideoUrl(slots.url || '');
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '50px 60px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <TextSlot name="eyebrow" value={slots.eyebrow} theme={theme} edit={edit} placeholder="eyebrow" style={eyebrowStyle(theme)} />
-      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Watch this" style={titleStyle(theme, 40)} />
+      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Watch this" style={titleStyle(theme, 40, slots)} />
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#0c0d0f', minHeight: 0, display: 'grid', placeItems: 'center' }}>
         {embedUrl ? (
           <iframe
@@ -606,7 +638,7 @@ const DEFAULT_CHART_DATA: ChartDatum[] = [
 ];
 
 const ChartLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   const kind: ChartKind = (slots.chartKind === 'line' || slots.chartKind === 'pie' || slots.chartKind === 'kpi' ? slots.chartKind : 'bar');
   const rawData: any[] = Array.isArray(slots.data) && slots.data.length > 0 ? slots.data : DEFAULT_CHART_DATA;
   const data: ChartDatum[] = rawData.map(d => ({
@@ -618,7 +650,7 @@ const ChartLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '50px 60px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 20 }}>
-        <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Chart title" style={titleStyle(theme, 38)} />
+        <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Chart title" style={titleStyle(theme, 38, slots)} />
         {edit && <ChartKindSwitch current={kind} onPick={(k) => edit.onSlotChange('chartKind', k)} theme={theme} />}
       </div>
 
@@ -750,7 +782,7 @@ function ChartDataEditor({ data, theme, onChange }: { data: ChartDatum[]; theme:
 }
 
 const ThanksLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
-  const { theme, wrapperStyle } = themeFor(bg);
+  const { theme, wrapperStyle } = themeFor(bg, slots);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', display: 'grid', placeItems: 'center', padding: 60 }}>
       <TextSlot
@@ -759,7 +791,7 @@ const ThanksLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit
         theme={theme}
         edit={edit}
         placeholder="Thank you."
-        style={titleStyle(theme, 140)}
+        style={titleStyle(theme, 140, slots)}
       />
     </div>
   );
@@ -772,18 +804,29 @@ const ThanksLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit
 function eyebrowStyle(theme: Theme): CSSProperties {
   return { fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.25em', color: theme.eyebrow, textTransform: 'uppercase' };
 }
-function titleStyle(theme: Theme, size: number): CSSProperties {
+function titleStyle(theme: Theme, size: number, slots?: Slots): CSSProperties {
+  const scale = readFontScale(slots);
+  const baseSize = size * scale;
+  const minSize = 32 * scale;
   return {
-    fontFamily: 'var(--serif)',
-    fontSize: `clamp(32px, ${size / 12}vw, ${size}px)`,
+    fontFamily: primaryFamily(slots),
+    fontSize: `clamp(${Math.round(minSize)}px, ${(size / 12) * scale}vw, ${Math.round(baseSize)}px)`,
     fontWeight: 400,
     lineHeight: 1.02,
     letterSpacing: '-.025em',
     color: theme.ink,
   };
 }
-function subStyle(theme: Theme): CSSProperties {
-  return { fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 22, color: theme.sub, lineHeight: 1.4, maxWidth: '70%' };
+function subStyle(theme: Theme, slots?: Slots): CSSProperties {
+  const scale = readFontScale(slots);
+  return {
+    fontFamily: primaryFamily(slots),
+    fontStyle: 'italic',
+    fontSize: Math.round(22 * scale),
+    color: theme.sub,
+    lineHeight: 1.4,
+    maxWidth: '70%',
+  };
 }
 
 // ---------------------------------------------------------------------------
