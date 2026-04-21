@@ -50,7 +50,15 @@ export function ViewerClient({ slug }: { slug: string }) {
       setData(d);
       setPhase('viewer');
       navigator.sendBeacon?.('/api/events', new Blob(
-        [JSON.stringify({ type: 'SHARE_OPEN', tellerId: d.teller.id, shareId: d.share.id, sessionId, email })],
+        [JSON.stringify({
+          type: 'SHARE_OPEN',
+          tellerId: d.teller.id,
+          shareId: d.share.id,
+          sessionId,
+          email,
+          slideIdx: 1,
+          meta: { totalSlides: d.teller.slides.length, hasNarration: d.teller.recordings.length > 0 },
+        })],
         { type: 'application/json' },
       ));
     } catch (err) {
@@ -186,6 +194,7 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
   const narratorVideoRef = useRef<HTMLVideoElement>(null);
   const dwellStartRef = useRef(Date.now());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const advancedRef = useRef(false);
   // Refs used by the global pagehide/visibilitychange handlers. They let the
   // handler read the latest idx without re-subscribing on every slide change,
   // which is what caused the "triple SLIDE_DWELL at the same timestamp" bug.
@@ -273,13 +282,22 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
   // Progress timer
   useEffect(() => {
     if (tickRef.current) clearInterval(tickRef.current);
+    // Reset the "already-advanced" latch when the slide/duration changes so
+    // the next overflow on THIS slide advances exactly once.
+    advancedRef.current = false;
     tickRef.current = setInterval(() => {
       if (!playing) return;
       setProgress(p => {
         const np = p + 100;
         if (np >= slideDurMs) {
-          if (idx < slides.length) setTimeout(() => goTo(idx + 1), 0);
-          else setPlaying(false);
+          // Without this guard, the setInterval keeps ticking while goTo's
+          // 160ms setTimeout is in flight, queuing one goTo per tick ⟶ N
+          // duplicated SLIDE_DWELL beacons per slide change.
+          if (!advancedRef.current) {
+            advancedRef.current = true;
+            if (idx < slides.length) setTimeout(() => goTo(idx + 1), 0);
+            else setPlaying(false);
+          }
           return slideDurMs;
         }
         return np;
@@ -322,7 +340,15 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
 
   function downloadDeck() {
     navigator.sendBeacon?.('/api/events', new Blob(
-      [JSON.stringify({ type: 'DOWNLOAD', tellerId: data.teller.id, shareId: data.share.id, sessionId, email })],
+      [JSON.stringify({
+        type: 'DOWNLOAD',
+        tellerId: data.teller.id,
+        shareId: data.share.id,
+        sessionId,
+        email,
+        slideIdx: idx,
+        meta: { slidesVisited: viewed.size, totalSlides: slides.length },
+      })],
       { type: 'application/json' },
     ));
     // Browser-native PDF via print. Print styles below make each slide one page.

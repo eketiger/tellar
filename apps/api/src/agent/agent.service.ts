@@ -92,13 +92,10 @@ export class AgentService {
       answer = this.mockAnswer(dto.question, chunks, slidePool);
     }
 
-    await this.events.track({
-      type: 'AGENT_QUERY',
-      tellerId: dto.tellerId,
-      sessionId: dto.userId || dto.email || 'anon',
-      email: dto.email,
-      meta: { question: dto.question },
-    });
+    // NOTE: AGENT_QUERY is tracked client-side via the /api/events beacon so
+    // the event carries the real viewer sessionId + slideIdx. We deliberately
+    // do NOT track it here as well — doing so produced a duplicate event
+    // with a synthetic sessionId and no slideIdx.
 
     if (dto.userId) {
       await this.prisma.tellerAsk.create({
