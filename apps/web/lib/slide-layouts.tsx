@@ -502,6 +502,59 @@ const ComparisonLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; 
   );
 };
 
+function parseVideoUrl(url: string): { provider: 'youtube' | 'loom' | null; embedUrl: string | null } {
+  if (!url) return { provider: null, embedUrl: null };
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{6,})/);
+  if (yt) return { provider: 'youtube', embedUrl: `https://www.youtube.com/embed/${yt[1]}` };
+  const loom = url.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/);
+  if (loom) return { provider: 'loom', embedUrl: `https://www.loom.com/embed/${loom[1]}` };
+  const ytEmbed = url.match(/youtube\.com\/embed\/[\w-]+/);
+  if (ytEmbed) return { provider: 'youtube', embedUrl: url };
+  return { provider: null, embedUrl: null };
+}
+
+const VideoEmbedLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
+  const { theme, wrapperStyle } = themeFor(bg);
+  const { embedUrl } = parseVideoUrl(slots.url || '');
+  return (
+    <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '50px 60px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <TextSlot name="eyebrow" value={slots.eyebrow} theme={theme} edit={edit} placeholder="eyebrow" style={eyebrowStyle(theme)} />
+      <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Watch this" style={titleStyle(theme, 40)} />
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#0c0d0f', minHeight: 0, display: 'grid', placeItems: 'center' }}>
+        {embedUrl ? (
+          <iframe
+            src={embedUrl}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            title="Embedded video"
+            style={{ width: '100%', height: '100%', border: 0, pointerEvents: edit ? 'none' : 'auto' }}
+          />
+        ) : (
+          <div style={{ color: '#6d6a63', fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', textAlign: 'center', padding: 20 }}>
+            {slots.url ? 'unsupported url — paste a YouTube or Loom link below' : 'paste a YouTube or Loom url below'}
+          </div>
+        )}
+      </div>
+      <TextSlot name="caption" value={slots.caption} theme={theme} edit={edit} placeholder="Short caption" style={{ fontFamily: 'var(--mono)', fontSize: 11, color: theme.eyebrow, letterSpacing: '.1em', textTransform: 'uppercase' }} />
+      {edit && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.2em', color: theme.eyebrow, textTransform: 'uppercase' }}>url</span>
+          <div style={{ flex: 1 }}>
+            <TextSlot
+              name="url"
+              value={slots.url}
+              theme={theme}
+              edit={edit}
+              placeholder="https://www.youtube.com/watch?v=..."
+              style={{ fontFamily: 'var(--mono)', fontSize: 12, color: theme.accent }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ThanksLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
   const { theme, wrapperStyle } = themeFor(bg);
   return (
@@ -556,6 +609,7 @@ export const LAYOUTS: Record<string, LayoutMeta & { render: LayoutRender }> = {
   bullets:    { id: 'bullets',    label: 'Bullets',    hint: 'Title + up to 6 numbered bullets',          slots: { title: 'text', bullets: 'text[]' }, defaultBg: 'cream', render: BulletsLayout },
   grid:       { id: 'grid',       label: 'Grid',       hint: '2×3 card grid — perfect for team or logos', slots: { title: 'text', items: 'text[]' }, defaultBg: 'cream', render: GridLayout },
   comparison: { id: 'comparison', label: 'Comparison', hint: 'Two columns: before vs. after',             slots: { headline: 'text', leftTitle: 'text', rightTitle: 'text', left: 'text[]', right: 'text[]' }, defaultBg: 'cream', render: ComparisonLayout },
+  videoEmbed: { id: 'videoEmbed', label: 'Video',      hint: 'YouTube or Loom embed with caption',        slots: { eyebrow: 'text', title: 'text', url: 'text', caption: 'text' }, defaultBg: 'cream', render: VideoEmbedLayout },
   thanks:     { id: 'thanks',     label: 'Thanks',     hint: 'Closing slide',                             slots: { title: 'text' }, defaultBg: 'cream', render: ThanksLayout },
 };
 
