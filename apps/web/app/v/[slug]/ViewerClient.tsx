@@ -186,6 +186,11 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
   const narratorVideoRef = useRef<HTMLVideoElement>(null);
   const dwellStartRef = useRef(Date.now());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Refs used by the global pagehide/visibilitychange handlers. They let the
+  // handler read the latest idx without re-subscribing on every slide change,
+  // which is what caused the "triple SLIDE_DWELL at the same timestamp" bug.
+  const idxRef = useRef(idx);
+  useEffect(() => { idxRef.current = idx; }, [idx]);
 
   const goTo = useCallback((next: number) => {
     if (next < 1 || next > slides.length) return;
@@ -198,30 +203,58 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
     setTimeout(() => { setIdx(next); setViewed(v => new Set(v).add(next)); setSwap(false); setProgress(0); dwellStartRef.current = Date.now(); }, 160);
   }, [data, email, idx, sessionId, slides.length]);
 
+  // SLIDE_VIEW fires once per slide change. Guarded by sessionStorage so
+  // React strict-mode's dev-only double-mount doesn't emit it twice.
   useEffect(() => {
+    const key = `tellar:viewed:${sessionId}:${idx}`;
+    if (typeof window !== 'undefined' && sessionStorage.getItem(key)) return;
+    if (typeof window !== 'undefined') sessionStorage.setItem(key, '1');
     navigator.sendBeacon?.('/api/events', new Blob(
       [JSON.stringify({ type: 'SLIDE_VIEW', tellerId: data.teller.id, shareId: data.share.id, sessionId, email, slideIdx: idx })],
       { type: 'application/json' },
     ));
-  }, [idx, data, email, sessionId]);
+  }, [idx, data.teller.id, data.share.id, email, sessionId]);
 
   // Flush dwell on page hide so the last slide's time isn't lost when the
-  // viewer closes the tab, navigates away, or backgrounds the app on mobile.
+  // viewer closes the tab, backgrounds the app, or the phone locks.
+  // Registered ONCE per mount; the handler reads the latest idx from a ref
+  // and tracks which (idx, start) pair it has already flushed to avoid
+  // firing pagehide+visibilitychange back-to-back as two separate events.
   useEffect(() => {
-    function onHide() {
-      const dwellMs = Date.now() - dwellStartRef.current;
+    let lastFlushedStart = 0;
+    function flushDwell() {
+      const start = dwellStartRef.current;
+      if (start === lastFlushedStart) return; // already sent for this dwell interval
+      const dwellMs = Date.now() - start;
       if (dwellMs < 250) return;
+      lastFlushedStart = start;
       navigator.sendBeacon?.('/api/events', new Blob(
-        [JSON.stringify({ type: 'SLIDE_DWELL', tellerId: data.teller.id, shareId: data.share.id, sessionId, email, slideIdx: idx, dwellMs })],
+        [JSON.stringify({
+          type: 'SLIDE_DWELL',
+          tellerId: data.teller.id,
+          shareId: data.share.id,
+          sessionId,
+          email,
+          slideIdx: idxRef.current,
+          dwellMs,
+        })],
         { type: 'application/json' },
       ));
     }
-    window.addEventListener('pagehide', onHide);
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') onHide(); });
+    function onVis() {
+      if (document.visibilityState === 'hidden') flushDwell();
+      else {
+        // Tab came back — let the next hide flush again for the new dwell.
+        lastFlushedStart = 0;
+      }
+    }
+    window.addEventListener('pagehide', flushDwell);
+    document.addEventListener('visibilitychange', onVis);
     return () => {
-      window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('pagehide', flushDwell);
+      document.removeEventListener('visibilitychange', onVis);
     };
-  }, [idx, data.teller.id, data.share.id, sessionId, email]);
+  }, [data.teller.id, data.share.id, sessionId, email]);
 
   // Load narration blob when slide changes
   useEffect(() => {
