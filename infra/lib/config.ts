@@ -24,8 +24,8 @@ const common = {
 export const staging: AppConfig = {
   ...common,
   environment: 'staging',
-  domainName: 'staging.tellar.studio',
-  hostedZoneId: 'Z00000000000000000000',
+  domainName: 'tuna.com.ar',
+  hostedZoneId: 'Z052525635CPTMMOPMMHH',
   taskCpu: 512,
   taskMemoryMiB: 1024,
   desiredCount: 1,
