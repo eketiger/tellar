@@ -26,12 +26,16 @@ type Tab = 'copilot' | 'knowledge' | 'recording';
 
 interface SlideImage { id: string; name: string; url: string; }
 
-/** One reversible edit — the forward patch plus the values it overwrote. */
-interface HistoryEntry {
-  slideId: string;
-  patch: Partial<Slide> & { layout?: any };
-  inverse: Partial<Slide> & { layout?: any };
-}
+/** One reversible edit. PATCH kind stores the forward patch + its inverse.
+ *  DUPLICATE kind just remembers the duplicate's id so undo can delete it. */
+type HistoryEntry =
+  | {
+      kind: 'patch';
+      slideId: string;
+      patch: Partial<Slide> & { layout?: any };
+      inverse: Partial<Slide> & { layout?: any };
+    }
+  | { kind: 'duplicate'; newSlideId: string };
 
 const HISTORY_LIMIT = 80;
 const COALESCE_MS = 600;
@@ -102,11 +106,18 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
       const k = e.key.toLowerCase();
-      if (k !== 'z' && k !== 'y') return;
       if (targetIsEditable(e.target)) return;
-      e.preventDefault();
-      if (k === 'y' || (k === 'z' && e.shiftKey)) redo();
-      else undo();
+      if (k === 'z' || k === 'y') {
+        e.preventDefault();
+        if (k === 'y' || (k === 'z' && e.shiftKey)) redo();
+        else undo();
+        return;
+      }
+      if (k === 'd' && !e.shiftKey) {
+        e.preventDefault();
+        if (activeId) duplicateSlide(activeId);
+        return;
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -125,13 +136,13 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       // Coalesce rapid edits on the same slide+fields into the same history entry.
       const canCoalesce = last && last.slideId === slideId && last.keys === keys && (now - last.at) < COALESCE_MS;
       if (!canCoalesce) {
-        undoStackRef.current.push({ slideId, patch, inverse });
+        undoStackRef.current.push({ kind: 'patch', slideId, patch, inverse });
         if (undoStackRef.current.length > HISTORY_LIMIT) undoStackRef.current.shift();
         redoStackRef.current = [];
       } else {
         // Update forward patch so redo reflects the latest value.
         const top = undoStackRef.current[undoStackRef.current.length - 1];
-        if (top) top.patch = { ...top.patch, ...patch };
+        if (top && top.kind === 'patch') top.patch = { ...top.patch, ...patch };
       }
       lastPushRef.current = { slideId, keys, at: now };
     }
@@ -147,23 +158,40 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     }, 300);
   }
 
-  function undo() {
+  async function undo() {
     const entry = undoStackRef.current.pop();
     if (!entry) { flashToast('Nothing to undo'); return; }
     redoStackRef.current.push(entry);
     lastPushRef.current = null;
-    queueSave(entry.slideId, entry.inverse, { trackHistory: false });
-    if (entry.slideId !== activeId) setActiveId(entry.slideId);
+    if (entry.kind === 'patch') {
+      queueSave(entry.slideId, entry.inverse, { trackHistory: false });
+      if (entry.slideId !== activeId) setActiveId(entry.slideId);
+    } else if (entry.kind === 'duplicate') {
+      await api(`/slides/${entry.newSlideId}`, { method: 'DELETE' });
+      setTeller(t => {
+        const next = t.slides.filter(s => s.id !== entry.newSlideId).map((s, i) => ({ ...s, idx: i + 1 }));
+        if (activeId === entry.newSlideId) setActiveId(next[0]?.id);
+        return { ...t, slides: next };
+      });
+    }
     flashToast('Undo');
   }
 
-  function redo() {
+  async function redo() {
     const entry = redoStackRef.current.pop();
     if (!entry) { flashToast('Nothing to redo'); return; }
     undoStackRef.current.push(entry);
     lastPushRef.current = null;
-    queueSave(entry.slideId, entry.patch, { trackHistory: false });
-    if (entry.slideId !== activeId) setActiveId(entry.slideId);
+    if (entry.kind === 'patch') {
+      queueSave(entry.slideId, entry.patch, { trackHistory: false });
+      if (entry.slideId !== activeId) setActiveId(entry.slideId);
+    } else if (entry.kind === 'duplicate') {
+      // Re-duplication by id is lossy (server mints a new id). Drop the redo
+      // by not pushing it again — keeps us honest rather than silently wrong.
+      undoStackRef.current.pop();
+      flashToast('Cannot redo duplicate — please run again');
+      return;
+    }
     flashToast('Redo');
   }
 
@@ -174,6 +202,26 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     setActiveId(created.id);
     await api(`/slides/${created.id}`, { method: 'PATCH', json: { layoutId, background: created.background } });
     flashToast(`${LAYOUTS[layoutId]?.label || 'Slide'} added`);
+  }
+
+  async function duplicateSlide(id: string) {
+    const src = teller.slides.find(s => s.id === id);
+    if (!src) return;
+    const copy = await api<Slide>(`/slides/${id}/duplicate`, { method: 'POST' });
+    const hydrated: Slide = { ...copy, layoutId: copy.layoutId || src.layoutId };
+    setTeller(t => {
+      const bumped = t.slides.map(s => (s.idx >= hydrated.idx ? { ...s, idx: s.idx + 1 } : s));
+      // The server already bumped + inserted; we rebuild slides from scratch ordered by idx.
+      const next = [...bumped.filter(s => s.id !== hydrated.id), hydrated].sort((a, b) => a.idx - b.idx);
+      // Normalise idx in case the optimistic bump drifted.
+      return { ...t, slides: next.map((s, i) => ({ ...s, idx: i + 1 })) };
+    });
+    setActiveId(hydrated.id);
+    undoStackRef.current.push({ kind: 'duplicate', newSlideId: hydrated.id });
+    if (undoStackRef.current.length > HISTORY_LIMIT) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    lastPushRef.current = null;
+    flashToast('Slide duplicated');
   }
 
   async function removeSlide(id: string) {
@@ -254,7 +302,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
             {teller.slides.map(s => {
               const hasRec = teller.recordings.some((r: any) => r.slideId === s.id);
               return (
-                <button key={s.id} className={`slide-thumb${s.id === activeId ? ' active' : ''}`} onClick={() => setActiveId(s.id)}>
+                <div key={s.id} className={`slide-thumb${s.id === activeId ? ' active' : ''}`} onClick={() => setActiveId(s.id)} role="button">
                   <div className="st-num">{String(s.idx).padStart(2, '0')}</div>
                   <div className="st-card" style={{ padding: 0, overflow: 'hidden' }}>
                     <div style={{ transform: 'scale(0.12)', transformOrigin: 'top left', width: '833%', height: '833%' }}>
@@ -262,7 +310,17 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                     </div>
                     {hasRec && <span className="st-rec-badge" />}
                   </div>
-                </button>
+                  <button
+                    className="slide-thumb-dup"
+                    title="Duplicate slide (⌘D)"
+                    onClick={e => { e.stopPropagation(); duplicateSlide(s.id); }}
+                  >
+                    <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.2}>
+                      <rect x={1} y={1} width={6} height={6} />
+                      <rect x={3} y={3} width={6} height={6} />
+                    </svg>
+                  </button>
+                </div>
               );
             })}
           </div>
