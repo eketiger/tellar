@@ -111,3 +111,25 @@
 
 .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 10px 18px; background: var(--panel-2); border: 1px solid var(--line-2); font-family: var(--mono); font-size: 11px; color: var(--ink); z-index: 200; opacity: 0; transition: opacity .3s; pointer-events: none; }
 .toast.show { opacity: 1; }
+
+/* Inline editing — focus bounding box on contentEditable slots. */
+.slot-edit { outline: none; cursor: text; transition: outline-color .1s; min-height: 1em; }
+.slot-edit:empty::before { content: attr(data-placeholder); color: rgba(0,0,0,.28); font-style: italic; }
+.slot-edit:hover { outline: 1px dashed rgba(200,154,58,.35); outline-offset: 4px; }
+.slot-edit:focus { outline: 2px dashed #c89a3a; outline-offset: 6px; }
+/* On dark themes, the placeholder ghost needs more contrast. */
+.slot-dark .slot-edit:empty::before { color: rgba(244,239,230,.35); }
+
+/* Slot image overlay — "change image" affordance. */
+.slot-image-overlay { position: absolute; top: 10px; right: 10px; padding: 5px 10px; background: rgba(12,13,15,.72); color: #f6f3ed; border: 1px solid rgba(255,255,255,.2); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; opacity: 0; transition: opacity .15s; z-index: 3; }
+.slide-canvas:hover .slot-image-overlay, .slot-image-overlay:focus-visible { opacity: 1; }
+.slot-image-overlay:hover { background: var(--accent); color: #0c0d0f; border-color: var(--accent); }
+
+/* List slots: add / remove line affordance. */
+.slot-list-add { background: transparent; border: 1px dashed rgba(200,154,58,.35); color: rgba(200,154,58,.7); font-family: var(--mono); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; padding: 4px 10px; cursor: pointer; margin-top: 8px; transition: all .15s; }
+.slot-list-add:hover { border-color: var(--accent); color: var(--accent); }
+.slot-list-row { display: flex; gap: 6px; align-items: flex-start; }
+.slot-list-remove { background: transparent; border: none; color: rgba(0,0,0,.3); cursor: pointer; padding: 2px 4px; font-family: var(--mono); font-size: 11px; opacity: 0; transition: opacity .12s, color .12s; }
+.slot-list-row:hover .slot-list-remove { opacity: 1; }
+.slot-list-remove:hover { color: var(--bad); }
+.slot-dark .slot-list-remove { color: rgba(244,239,230,.4); }
