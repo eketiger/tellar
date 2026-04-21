@@ -28,6 +28,18 @@ export class TellersController {
     return this.svc.create(u.ws, u.sub, dto.title, dto.theme);
   }
 
+  @Post('from-template')
+  fromTemplate(
+    @CurrentUser() u: any,
+    @Body() body: { title: string; theme?: string; slides: any[] },
+  ) {
+    return this.svc.createFromTemplate(u.ws, u.sub, {
+      title: body?.title || 'Untitled',
+      theme: body?.theme,
+      slides: Array.isArray(body?.slides) ? body.slides : [],
+    });
+  }
+
   @Get(':id')
   @UseGuards(WorkspaceGuard)
   get(@Param('id') id: string) {

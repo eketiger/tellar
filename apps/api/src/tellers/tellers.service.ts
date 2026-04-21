@@ -72,4 +72,50 @@ export class TellersService {
       },
     });
   }
+
+  /**
+   * Clone a pre-designed deck into a fresh teller. The client sends the full
+   * slide list from the templates registry in apps/web/lib/templates.ts; we
+   * trust it the same way we trust POST /slides (the user could already
+   * hand-craft these via the editor). Returns the new teller id so the
+   * client can redirect into the editor.
+   */
+  async createFromTemplate(
+    workspaceId: string,
+    ownerId: string,
+    input: {
+      title: string;
+      theme?: string;
+      slides: Array<{
+        layoutId: string;
+        layout?: Record<string, any>;
+        background?: Record<string, any>;
+        title?: string;
+        subtitle?: string | null;
+        eyebrow?: string | null;
+        notes?: string | null;
+      }>;
+    },
+  ) {
+    const t = await this.prisma.teller.create({
+      data: { workspaceId, ownerId, title: input.title, theme: input.theme || 'editorial-cream' },
+    });
+    for (let i = 0; i < input.slides.length; i++) {
+      const s = input.slides[i];
+      await this.prisma.slide.create({
+        data: {
+          tellerId: t.id,
+          idx: i + 1,
+          layoutId: s.layoutId || 'headline',
+          layout: (s.layout || {}) as any,
+          background: (s.background || { kind: 'cream' }) as any,
+          title: s.title ?? (s.layout?.title as string) ?? 'Untitled',
+          subtitle: s.subtitle ?? ((s.layout?.subtitle as string) || null),
+          eyebrow: s.eyebrow ?? ((s.layout?.eyebrow as string) || null),
+          notes: s.notes ?? null,
+        },
+      });
+    }
+    return t;
+  }
 }
