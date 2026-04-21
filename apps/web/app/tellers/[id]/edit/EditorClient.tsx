@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { sanitizeSlideHtml } from '@/lib/sanitize';
 import { NarrationPanel } from './NarrationPanel';
 import { KbPanel } from './KbPanel';
 import { CopilotPanel } from './CopilotPanel';
 import { LayoutPicker } from './LayoutPicker';
-import { SlotEditor } from './SlotEditor';
 import { LAYOUTS, RenderSlide, type BackgroundKind } from '@/lib/slide-layouts';
 import './editor.css';
 
@@ -24,7 +22,9 @@ interface Slide {
 }
 interface Teller { id: string; title: string; slides: Slide[]; kbSources: any[]; recordings: any[]; }
 
-type Tab = 'copilot' | 'knowledge' | 'recording' | 'layout';
+type Tab = 'copilot' | 'knowledge' | 'recording';
+
+interface SlideImage { id: string; name: string; url: string; }
 
 const THEMES: { kind: BackgroundKind; label: string; swatch: string }[] = [
   { kind: 'cream',    label: 'Cream',    swatch: '#f6f3ed' },
@@ -46,10 +46,11 @@ function resolveSlotsFromSlide(s: Slide | undefined): Record<string, any> {
 export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [teller, setTeller] = useState<Teller>(initial);
   const [activeId, setActiveId] = useState<string | undefined>(initial.slides[0]?.id);
-  const [tab, setTab] = useState<Tab>('layout');
+  const [tab, setTab] = useState<Tab>('copilot');
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
   const [toast, setToast] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [imagePickerSlot, setImagePickerSlot] = useState<string | null>(null);
   const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,6 +119,11 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       title: next.title ?? active.title ?? '',
       subtitle: next.subtitle ?? null,
     });
+  }
+
+  function setSlot(name: string, value: any) {
+    if (!active) return;
+    updateSlots({ ...activeSlots, [name]: value });
   }
 
   function setBackground(kind: BackgroundKind) {
@@ -221,7 +227,10 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           <div className="canvas-stage">
             {active ? (
               <div className="slide-canvas" style={{ padding: 0, overflow: 'hidden' }}>
-                <RenderSlide slide={{ ...active, layoutId: activeLayoutId, layout: activeSlots, background: activeBg }} />
+                <RenderSlide
+                  slide={{ ...active, layoutId: activeLayoutId, layout: activeSlots, background: activeBg }}
+                  edit={{ onSlotChange: setSlot, onPickImage: setImagePickerSlot }}
+                />
               </div>
             ) : (
               <div style={{ color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontSize: 12 }}>No slide selected — press + to add one.</div>
@@ -241,7 +250,6 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
         <aside className="right-panel">
           <div className="rp-tabs">
-            <button className={`rp-tab${tab === 'layout' ? ' active' : ''}`} onClick={() => setTab('layout')}>slots</button>
             <button className={`rp-tab${tab === 'copilot' ? ' active' : ''}`} onClick={() => setTab('copilot')}>copilot</button>
             <button className={`rp-tab${tab === 'knowledge' ? ' active' : ''}`} onClick={() => setTab('knowledge')}>
               kb<span className="badge">{teller.kbSources.length}</span>
@@ -252,15 +260,6 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           </div>
 
           <div className="rp-content">
-            {tab === 'layout' && active && (
-              <SlotEditor
-                tellerId={teller.id}
-                slideId={active.id}
-                layoutId={activeLayoutId}
-                slots={activeSlots}
-                onChange={updateSlots}
-              />
-            )}
             {tab === 'copilot' && (
               <CopilotPanel
                 slideId={active?.id}
@@ -296,7 +295,85 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
         />
       )}
 
+      {imagePickerSlot && (
+        <ImagePickerDialog
+          tellerId={teller.id}
+          onPick={img => { setSlot(imagePickerSlot, img); setImagePickerSlot(null); flashToast('Image updated'); }}
+          onClose={() => setImagePickerSlot(null)}
+        />
+      )}
+
       <div className={`toast${toast ? ' show' : ''}`}>{toast}</div>
     </>
+  );
+}
+
+function ImagePickerDialog({
+  tellerId,
+  onPick,
+  onClose,
+}: {
+  tellerId: string;
+  onPick: (img: { id: string; url: string }) => void;
+  onClose: () => void;
+}) {
+  const [items, setItems] = useState<SlideImage[] | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    api<SlideImage[]>(`/tellers/${tellerId}/images`).then(setItems).catch(() => setItems([]));
+  }, [tellerId]);
+
+  async function upload(file: File) {
+    if (file.size > 10 * 1024 * 1024) { alert('Image > 10 MB — choose a smaller file.'); return; }
+    setUploading(true);
+    try {
+      const up = await api<{ id: string; uploadUrl: string; method: string; headers: Record<string, string>; url: string }>(
+        `/tellers/${tellerId}/images/upload-url`,
+        { method: 'POST', json: { name: file.name, mime: file.type, bytes: file.size } },
+      );
+      await fetch(up.uploadUrl, { method: up.method, body: file, headers: up.headers });
+      onPick({ id: up.id, url: up.url });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(12,13,15,.9)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+      <div onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '100%', background: 'var(--panel)', border: '1px solid var(--line-2)', padding: 22 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500 }}>
+            Image library <span className="note" style={{ marginLeft: 8 }}>— {items?.length ?? 0}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Uploading…' : 'Upload new'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+          </div>
+        </div>
+        {!items && <div className="note">Loading…</div>}
+        {items && items.length === 0 && <p className="note">No images yet — upload one.</p>}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+          {(items || []).map(i => (
+            <button
+              key={i.id}
+              onClick={() => onPick({ id: i.id, url: i.url })}
+              style={{ padding: 0, border: '1px solid var(--line)', background: `url(${i.url}) center/cover`, aspectRatio: '16/10', cursor: 'pointer' }}
+              title={i.name}
+            />
+          ))}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }}
+        />
+      </div>
+    </div>
   );
 }
