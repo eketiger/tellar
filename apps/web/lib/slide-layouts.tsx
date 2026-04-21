@@ -346,9 +346,9 @@ const BigNumberLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
       <TextSlot name="eyebrow" value={slots.eyebrow} theme={theme} edit={edit} placeholder="eyebrow" style={eyebrowStyle(theme)} />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, flexWrap: 'wrap' }}>
-        <TextSlot name="prefix" value={slots.prefix} theme={theme} edit={edit} placeholder="$" style={{ fontFamily: 'var(--serif)', fontSize: 64, color: theme.sub, fontStyle: 'italic', minWidth: 24 }} />
-        <TextSlot name="number" value={slots.number || (edit ? '' : '—')} theme={theme} edit={edit} placeholder="1.4" style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(80px, 14vw, 220px)', fontWeight: 400, lineHeight: 1, letterSpacing: '-.04em', color: theme.ink, minWidth: 80 }} />
-        <TextSlot name="unit" value={slots.unit} theme={theme} edit={edit} placeholder="M ARR" style={{ fontFamily: 'var(--serif)', fontSize: 56, color: theme.accent, fontStyle: 'italic', minWidth: 40 }} />
+        <TextSlot name="prefix" value={slots.prefix} theme={theme} edit={edit} placeholder="$" style={{ fontFamily: primaryFamily(slots), fontSize: Math.round(64 * readFontScale(slots)), color: theme.sub, fontStyle: 'italic', minWidth: 24 }} />
+        <TextSlot name="number" value={slots.number || (edit ? '' : '—')} theme={theme} edit={edit} placeholder="1.4" style={{ fontFamily: primaryFamily(slots), fontSize: `clamp(${Math.round(80 * readFontScale(slots))}px, ${14 * readFontScale(slots)}vw, ${Math.round(220 * readFontScale(slots))}px)`, fontWeight: 400, lineHeight: 1, letterSpacing: '-.04em', color: theme.ink, minWidth: 80 }} />
+        <TextSlot name="unit" value={slots.unit} theme={theme} edit={edit} placeholder="M ARR" style={{ fontFamily: primaryFamily(slots), fontSize: Math.round(56 * readFontScale(slots)), color: theme.accent, fontStyle: 'italic', minWidth: 40 }} />
       </div>
       <TextSlot name="caption" value={slots.caption} theme={theme} edit={edit} placeholder="Caption" style={subStyle(theme, slots)} />
     </div>
@@ -357,6 +357,8 @@ const BigNumberLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
 
 const TwoColumnLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
   const { theme, wrapperStyle } = themeFor(bg, slots);
+  const scale = readFontScale(slots);
+  const family = primaryFamily(slots);
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 80px', display: 'flex', flexDirection: 'column', gap: 36 }}>
       <TextSlot name="headline" value={slots.headline} theme={theme} edit={edit} placeholder="The wedge." style={titleStyle(theme, 56, slots)} />
@@ -369,8 +371,8 @@ const TwoColumnLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
               <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.25em', color: theme.eyebrow, textTransform: 'uppercase' }}>
                 {i === 0 ? '0 1' : '0 2'}
               </div>
-              <TextSlot name={titleKey} value={slots[titleKey]} theme={theme} edit={edit} placeholder="Column title" style={{ fontFamily: 'var(--serif)', fontSize: 28, color: theme.ink, fontWeight: 500 }} />
-              <TextSlot name={bodyKey} value={slots[bodyKey]} theme={theme} edit={edit} placeholder="Column body" multiline style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 17, color: theme.sub, lineHeight: 1.5 }} />
+              <TextSlot name={titleKey} value={slots[titleKey]} theme={theme} edit={edit} placeholder="Column title" style={{ fontFamily: family, fontSize: Math.round(28 * scale), color: theme.ink, fontWeight: 500 }} />
+              <TextSlot name={bodyKey} value={slots[bodyKey]} theme={theme} edit={edit} placeholder="Column body" multiline style={{ fontFamily: family, fontStyle: 'italic', fontSize: Math.round(17 * scale), color: theme.sub, lineHeight: 1.5 }} />
             </div>
           );
         })}
@@ -381,7 +383,15 @@ const TwoColumnLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
 
 const QuoteLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
   const { theme, wrapperStyle } = themeFor(bg, slots);
-  const quoteStyle: CSSProperties = { fontFamily: 'var(--serif)', fontSize: 'clamp(40px, 5.5vw, 72px)', fontWeight: 300, lineHeight: 1.1, letterSpacing: '-.02em', color: theme.ink };
+  const scale = readFontScale(slots);
+  const quoteStyle: CSSProperties = {
+    fontFamily: primaryFamily(slots),
+    fontSize: `clamp(${Math.round(40 * scale)}px, ${5.5 * scale}vw, ${Math.round(72 * scale)}px)`,
+    fontWeight: 300,
+    lineHeight: 1.1,
+    letterSpacing: '-.02em',
+    color: theme.ink,
+  };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
       {edit ? (
@@ -440,7 +450,8 @@ const ImageRightLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; 
 const BulletsLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
   const { theme, wrapperStyle } = themeFor(bg, slots);
   const bullets: string[] = Array.isArray(slots.bullets) ? slots.bullets : [];
-  const lineStyle: CSSProperties = { fontFamily: 'var(--serif)', fontSize: 22, color: theme.ink, lineHeight: 1.45, flex: 1 };
+  const scale = readFontScale(slots);
+  const lineStyle: CSSProperties = { fontFamily: primaryFamily(slots), fontSize: Math.round(22 * scale), color: theme.ink, lineHeight: 1.45, flex: 1 };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '70px 90px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 30 }}>
       <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 56, slots)} />
@@ -472,6 +483,10 @@ const GridLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?:
   const { theme, wrapperStyle } = themeFor(bg, slots);
   const items: Array<{ title?: string; body?: string; image?: { url?: string } }> = Array.isArray(slots.items) ? slots.items : [];
   const update = (next: typeof items) => edit?.onSlotChange('items', next);
+  const scale = readFontScale(slots);
+  const family = primaryFamily(slots);
+  const itemTitleStyle: CSSProperties = { fontFamily: family, fontSize: Math.round(18 * scale), color: theme.ink, fontWeight: 500 };
+  const itemBodyStyle: CSSProperties = { fontFamily: 'var(--mono)', fontSize: 10, color: theme.sub, letterSpacing: '.1em', textTransform: 'uppercase' };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '60px 70px', display: 'flex', flexDirection: 'column', gap: 30 }}>
       <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Title" style={titleStyle(theme, 44, slots)} />
@@ -485,14 +500,14 @@ const GridLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?:
                   html={it.title || ''}
                   placeholder="Name"
                   name="items"
-                  style={{ fontFamily: 'var(--serif)', fontSize: 18, color: theme.ink, fontWeight: 500 }}
+                  style={itemTitleStyle}
                   onChange={v => update(items.map((x, j) => j === i ? { ...x, title: v } : x))}
                 />
                 <EditableText
                   html={it.body || ''}
                   placeholder="role"
                   name="items"
-                  style={{ fontFamily: 'var(--mono)', fontSize: 10, color: theme.sub, letterSpacing: '.1em', textTransform: 'uppercase' }}
+                  style={itemBodyStyle}
                   onChange={v => update(items.map((x, j) => j === i ? { ...x, body: v } : x))}
                 />
                 <button
@@ -507,8 +522,8 @@ const GridLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?:
               </>
             ) : (
               <>
-                {it.title && <div style={{ fontFamily: 'var(--serif)', fontSize: 18, color: theme.ink, fontWeight: 500 }}>{it.title}</div>}
-                {it.body && <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: theme.sub, letterSpacing: '.1em', textTransform: 'uppercase' }}>{it.body}</div>}
+                {it.title && <div style={itemTitleStyle}>{it.title}</div>}
+                {it.body && <div style={itemBodyStyle}>{it.body}</div>}
               </>
             )}
           </div>
@@ -532,7 +547,8 @@ const ComparisonLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; 
   const { theme, wrapperStyle } = themeFor(bg, slots);
   const left: string[] = Array.isArray(slots.left) ? slots.left : [];
   const right: string[] = Array.isArray(slots.right) ? slots.right : [];
-  const lineStyle: CSSProperties = { fontFamily: 'var(--serif)', fontSize: 17, color: theme.ink, lineHeight: 1.45, flex: 1 };
+  const scale = readFontScale(slots);
+  const lineStyle: CSSProperties = { fontFamily: primaryFamily(slots), fontSize: Math.round(17 * scale), color: theme.ink, lineHeight: 1.45, flex: 1 };
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '60px 70px', display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TextSlot name="headline" value={slots.headline} theme={theme} edit={edit} placeholder="Before vs. after." style={titleStyle(theme, 40, slots)} />

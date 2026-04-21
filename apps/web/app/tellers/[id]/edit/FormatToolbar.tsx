@@ -24,9 +24,15 @@ const DEFAULT_ACCENT = '#c89a3a';
  * The family / scale / accent controls persist at the slide level (via
  * `_fontFamily` / `_fontScale` / `_accent` entries in the slot bag).
  *
- * B / I / E act on the current contentEditable selection via execCommand.
- * E wraps the selection in <em>, which the viewer renders in the accent
- * color — this is the primary way creators tag "vivos" in body copy.
+ * B / I / E act on the currently-focused contentEditable selection. We save
+ * the selection on mousedown (when focus is still in the slot) and restore
+ * it on click before running the command — this is the standard trick for
+ * toolbar buttons in rich-text editors.
+ *
+ * - B → <strong>
+ * - I → <i>
+ * - E → <em> (viewer renders <em> in the accent color — use this to tag
+ *             the "vivos" / highlighted words in a slide).
  */
 export function FormatToolbar({
   fontFamily,
@@ -43,11 +49,41 @@ export function FormatToolbar({
   const accentInputRef = useRef<HTMLInputElement>(null);
   const [isOverEditable, setIsOverEditable] = useState(false);
 
-  // Track focus globally so B/I/E can indicate when they'll no-op.
+  // Save the slot's current selection on mousedown so the toolbar click
+  // doesn't lose it. We refocus + restore on the actual click handler.
+  const savedRangeRef = useRef<Range | null>(null);
+  const savedEditableRef = useRef<HTMLElement | null>(null);
+
+  function captureSelection() {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el || !el.isContentEditable) return;
+    savedEditableRef.current = el;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+  }
+
+  function runInline(cmd: 'bold' | 'italic' | 'emphasis') {
+    const el = savedEditableRef.current;
+    const range = savedRangeRef.current;
+    if (!el || !range) return;
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    execInlineCmd(cmd, accent || DEFAULT_ACCENT);
+    // Refresh saved range so chained clicks keep working.
+    if (sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+  }
+
+  // Track focus globally so B/I/E indicate when they'll no-op.
   useEffect(() => {
     function onFocus() {
       const el = document.activeElement as HTMLElement | null;
-      setIsOverEditable(!!el && el.isContentEditable);
+      const editable = !!el && el.isContentEditable;
+      setIsOverEditable(editable);
+      if (editable) savedEditableRef.current = el;
     }
     document.addEventListener('focusin', onFocus);
     document.addEventListener('focusout', onFocus);
@@ -68,7 +104,7 @@ export function FormatToolbar({
             key={f.id}
             className={`tool-btn${fontFamily === f.id ? ' active' : ''}`}
             title={`Font: ${f.label}`}
-            onPointerDown={e => e.preventDefault() /* keep slot focus */}
+            onMouseDown={e => e.preventDefault() /* keep slot focus */}
             onClick={() => onChange({ fontFamily: f.id })}
             style={{ width: 26, height: 22, minWidth: 26, padding: 0, fontFamily: f.fontFamily, fontSize: 12, lineHeight: 1 }}
           >
@@ -88,7 +124,7 @@ export function FormatToolbar({
               key={sc.id}
               className={`tool-btn${isActive ? ' active' : ''}`}
               title={`Size: ${sc.label}`}
-              onPointerDown={e => e.preventDefault()}
+              onMouseDown={e => e.preventDefault()}
               onClick={() => onChange({ fontScale: sc.value })}
               style={{ width: 22, height: 22, minWidth: 22, padding: 0, fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 500 }}
             >
@@ -100,12 +136,12 @@ export function FormatToolbar({
 
       <div className="tool-divider" />
 
-      {/* Accent color */}
+      {/* Accent color — applies to <em> and every accent-using element. */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         <button
           className="tool-btn"
-          title="Accent color (applies to <em> text)"
-          onPointerDown={e => e.preventDefault()}
+          title="Accent color (applies to <em> and number accents)"
+          onMouseDown={e => e.preventDefault()}
           onClick={() => { setAccentOpen(o => !o); setTimeout(() => accentInputRef.current?.click(), 0); }}
           style={{
             width: 22, height: 22, minWidth: 22, padding: 0,
@@ -126,7 +162,7 @@ export function FormatToolbar({
           <button
             className="tool-btn"
             title="Reset to theme default"
-            onPointerDown={e => e.preventDefault()}
+            onMouseDown={e => e.preventDefault()}
             onClick={() => onChange({ accent: null })}
             style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.1em', padding: '0 4px', height: 22, marginLeft: 2 }}
           >
@@ -137,26 +173,29 @@ export function FormatToolbar({
 
       <div className="tool-divider" />
 
-      {/* Inline B / I / E */}
+      {/* Inline B / I / E — save selection on mousedown, restore on click. */}
       <InlineFormatButton
         label="B"
         title="Bold (⌘B) — wraps selection in <strong>"
         enabled={isOverEditable}
-        onClick={() => execInlineCmd('bold')}
+        onCapture={captureSelection}
+        onClick={() => runInline('bold')}
         bold
       />
       <InlineFormatButton
         label="I"
         title="Italic (⌘I) — wraps selection in <i>"
         enabled={isOverEditable}
-        onClick={() => execInlineCmd('italic')}
+        onCapture={captureSelection}
+        onClick={() => runInline('italic')}
         italic
       />
       <InlineFormatButton
         label="E"
-        title="Emphasis (⌘E) — wraps selection in <em> (accent color)"
+        title="Emphasis (⌘E) — wraps selection in <em>, styled with the accent color"
         enabled={isOverEditable}
-        onClick={() => execInlineCmd('emphasis', activeAccent)}
+        onCapture={captureSelection}
+        onClick={() => runInline('emphasis')}
         color={activeAccent}
         italic
       />
@@ -168,6 +207,7 @@ function InlineFormatButton({
   label,
   title,
   enabled,
+  onCapture,
   onClick,
   bold,
   italic,
@@ -176,6 +216,7 @@ function InlineFormatButton({
   label: string;
   title: string;
   enabled: boolean;
+  onCapture: () => void;
   onClick: () => void;
   bold?: boolean;
   italic?: boolean;
@@ -186,7 +227,7 @@ function InlineFormatButton({
       className="tool-btn"
       title={title}
       disabled={!enabled}
-      onPointerDown={e => e.preventDefault() /* don't steal focus from the slot */}
+      onMouseDown={e => { e.preventDefault(); onCapture(); }}
       onClick={onClick}
       style={{
         width: 22,
@@ -206,34 +247,33 @@ function InlineFormatButton({
   );
 }
 
-/** Apply an inline style to the current selection inside a contentEditable. */
+/**
+ * Apply an inline style to the current selection inside a contentEditable.
+ * Called from toolbar clicks AND from ⌘B / ⌘I / ⌘E shortcuts.
+ */
 export function execInlineCmd(cmd: 'bold' | 'italic' | 'emphasis', accent?: string) {
   const el = document.activeElement as HTMLElement | null;
   if (!el || !el.isContentEditable) return;
-  if (cmd === 'bold') {
-    document.execCommand('bold');
-    return;
-  }
-  if (cmd === 'italic') {
-    document.execCommand('italic');
-    return;
-  }
+  if (cmd === 'bold') { document.execCommand('bold'); return; }
+  if (cmd === 'italic') { document.execCommand('italic'); return; }
   // Emphasis: wrap the selection in a <em> element the sanitizer keeps.
   const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+  if (!sel || sel.rangeCount === 0) return;
   const range = sel.getRangeAt(0);
-  // Ensure we're staying inside the focused editable.
+  if (range.collapsed) return;
   if (!el.contains(range.commonAncestorContainer)) return;
-  const fragment = range.extractContents();
   const em = document.createElement('em');
   if (accent) em.setAttribute('style', `color:${accent};font-style:italic`);
-  em.appendChild(fragment);
-  range.insertNode(em);
-  // Place the caret after the inserted element.
-  range.setStartAfter(em);
-  range.setEndAfter(em);
+  try {
+    em.appendChild(range.extractContents());
+    range.insertNode(em);
+  } catch {
+    return;
+  }
+  const after = document.createRange();
+  after.setStartAfter(em);
+  after.setEndAfter(em);
   sel.removeAllRanges();
-  sel.addRange(range);
-  // Nudge onBlur-based save by dispatching an input event.
+  sel.addRange(after);
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
