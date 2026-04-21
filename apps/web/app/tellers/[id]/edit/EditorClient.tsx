@@ -137,19 +137,42 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
-      const k = e.key.toLowerCase();
-      if (targetIsEditable(e.target)) return;
-      if (k === 'z' || k === 'y') {
-        e.preventDefault();
-        if (k === 'y' || (k === 'z' && e.shiftKey)) redo();
-        else undo();
+      const editable = targetIsEditable(e.target);
+      // Escape blurs the current slot so you can navigate without clicking out.
+      if (e.key === 'Escape' && editable) {
+        (e.target as HTMLElement).blur();
         return;
       }
-      if (k === 'd' && !e.shiftKey) {
-        e.preventDefault();
-        if (activeId) duplicateSlide(activeId);
+      if (mod) {
+        if (editable) return;
+        const k = e.key.toLowerCase();
+        if (k === 'z' || k === 'y') {
+          e.preventDefault();
+          if (k === 'y' || (k === 'z' && e.shiftKey)) redo();
+          else undo();
+          return;
+        }
+        if (k === 'd' && !e.shiftKey) {
+          e.preventDefault();
+          if (activeId) duplicateSlide(activeId);
+          return;
+        }
         return;
+      }
+      // Unmodified nav keys — only fire when the user isn't typing.
+      if (editable) return;
+      const ids = teller.slides.map(s => s.id);
+      const cur = activeId ? ids.indexOf(activeId) : -1;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'j') {
+        const nextIdx = cur < 0 ? 0 : Math.min(ids.length - 1, cur + 1);
+        if (ids[nextIdx]) { e.preventDefault(); setActiveId(ids[nextIdx]); }
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'k') {
+        const nextIdx = cur < 0 ? 0 : Math.max(0, cur - 1);
+        if (ids[nextIdx]) { e.preventDefault(); setActiveId(ids[nextIdx]); }
+      } else if (e.key === 'Home') {
+        if (ids[0]) { e.preventDefault(); setActiveId(ids[0]); }
+      } else if (e.key === 'End') {
+        if (ids[ids.length - 1]) { e.preventDefault(); setActiveId(ids[ids.length - 1]); }
       }
     }
     window.addEventListener('keydown', onKey);
