@@ -769,6 +769,288 @@ export const TEMPLATES: Template[] = [
       },
     ],
   },
+
+  // --------------------------------------------------------------
+  // 8. Board Update — the quarterly governance deck
+  // --------------------------------------------------------------
+  {
+    slug: 'board-update',
+    title: 'Quarterly Board Update',
+    tagline: 'The 8-slide board deck that respects everyone\'s time.',
+    description:
+      'A board deck that reads in 10 minutes and debates for 50. Headline number, OKR rollup, key risks, top asks. The format every non-exec board member wishes founders used.',
+    inspiredBy: 'Fred Wilson AVC board meeting posts · Bessemer founder letters',
+    category: 'internal',
+    seoKeywords: [
+      'board meeting deck template',
+      'quarterly board update template',
+      'startup board deck template',
+      'OKR board update deck',
+    ],
+    slides: [
+      {
+        layoutId: 'cover',
+        layout: {
+          eyebrow: 'board update · q4 2026',
+          title: 'Your <em>company</em>.',
+          subtitle: 'For the board of directors · 12 Dec 2026.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'bigNumber',
+        layout: {
+          eyebrow: 'quarter headline',
+          prefix: '$',
+          number: '9.4',
+          unit: 'M ARR',
+          caption: '<em>+42%</em> QoQ · 128% NRR · 17 months of runway at current burn.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'comparison',
+        layout: {
+          headline: 'OKRs · <em>plan</em> vs. actual.',
+          leftTitle: 'Planned',
+          rightTitle: 'Actual',
+          left: ['$8M ARR', '2 new verticals', 'NPS 52', '14 AE hires'],
+          right: ['$9.4M ARR · <em>beat</em>', '1 new vertical · miss', 'NPS 58 · <em>beat</em>', '9 AE hires · miss'],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'chart',
+        layout: {
+          title: 'Burn vs. <em>net new ARR</em>.',
+          chartKind: 'bar',
+          data: [
+            { label: 'Q1 26', value: 420 },
+            { label: 'Q2 26', value: 680 },
+            { label: 'Q3 26', value: 980 },
+            { label: 'Q4 26', value: 1480 },
+          ],
+          caption: 'Net new ARR in $K · burn held flat at $620K/qtr.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'Strategic <em>initiatives</em>.',
+          bullets: [
+            'Launched enterprise tier · 4 contracts signed.',
+            'Shipped SOC 2 Type II · opened regulated verticals.',
+            'AI copilot in beta with 14 customers.',
+            'EMEA office stood up in Madrid.',
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'Risks · <em>being honest</em>.',
+          bullets: [
+            'Net new logos <em>below plan</em> — demand gen investment underperforming.',
+            'Two senior eng attrition risks · retention package being structured.',
+            'Large customer in diligence for acquisition · exposure 7% ARR.',
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: '<em>Asks</em> from the board.',
+          bullets: [
+            'Intro to VP Eng at Fortune 500 banking partners.',
+            'Help structuring the EMEA entity tax-wise.',
+            'Feedback on the revised pricing model (appendix).',
+          ],
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'thanks',
+        layout: { title: 'Questions · <em>discussion</em>.' },
+        background: { kind: 'paper' },
+      },
+    ],
+  },
+
+  // --------------------------------------------------------------
+  // 9. Team Culture — founder voice, written once, re-used forever
+  // --------------------------------------------------------------
+  {
+    slug: 'team-culture',
+    title: 'Team Culture & Values',
+    tagline: 'The culture doc your next 20 hires will read before signing.',
+    description:
+      'A 7-slide artifact every founder eventually writes. Keep it opinionated, editorial, and short — Netflix\'s 2009 deck is still the canonical one and it\'s 125 slides because they couldn\'t cut. This one\'s already cut.',
+    inspiredBy: 'Netflix Culture Deck · Stripe Atlas · Notion first 100',
+    category: 'recruiting',
+    seoKeywords: [
+      'company culture deck template',
+      'startup values deck template',
+      'team culture presentation',
+      'employee handbook slides',
+    ],
+    slides: [
+      {
+        layoutId: 'cover',
+        layout: {
+          eyebrow: 'our culture · v3',
+          title: 'How we <em>work</em>.',
+          subtitle: 'What we\'re optimising for · what we\'re not · what we ask of each other.',
+        },
+        background: { kind: 'midnight' },
+      },
+      {
+        layoutId: 'headline',
+        layout: {
+          eyebrow: 'mission',
+          title: 'We\'re here to <em>make the hard thing cheap</em>.',
+          subtitle: 'One sentence, no adverbs. If we can\'t explain it to a 12-year-old we rewrite it.',
+        },
+        background: { kind: 'midnight' },
+      },
+      {
+        layoutId: 'grid',
+        layout: {
+          title: 'Our <em>values</em>.',
+          items: [
+            { title: 'Ship the boring thing', body: 'Progress · not performance' },
+            { title: 'Write it down', body: 'Async · decisions in docs' },
+            { title: 'Disagree in public', body: 'Alignment · not politeness' },
+            { title: 'Own the outcome', body: 'One spine per problem' },
+            { title: 'Keep the ego low', body: 'Strong opinions · light grip' },
+            { title: 'Ruthlessly prune', body: 'Less surface · fewer bugs' },
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bullets',
+        layout: {
+          title: 'What we <em>don\'t</em> believe in.',
+          bullets: [
+            '<em>Status meetings.</em> Write it instead.',
+            '<em>Hero culture.</em> If it took a hero, the system failed.',
+            '<em>Optics.</em> Deliver; don\'t narrate.',
+            '<em>Nine-to-five.</em> Deep work over attendance.',
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'twoColumn',
+        layout: {
+          headline: 'The <em>deal</em>.',
+          leftTitle: 'What we give',
+          leftBody: 'Top-10% cash · meaningful equity · remote-first · budget for tools · the space to do the best work of your life.',
+          rightTitle: 'What we ask',
+          rightBody: 'Candor · ownership · a written trail · the courage to push back when the founder is wrong (we will be).',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'quote',
+        layout: {
+          quote:
+            'The fastest shorthand for a culture is <em>what do you complain about</em>. We complain about slow decisions and bad writing. Fix those two things first.',
+          author: 'Our CEO',
+          role: 'week-one onboarding memo',
+        },
+        background: { kind: 'midnight' },
+      },
+      {
+        layoutId: 'thanks',
+        layout: { title: 'Welcome <em>in</em>.' },
+        background: { kind: 'midnight' },
+      },
+    ],
+  },
+
+  // --------------------------------------------------------------
+  // 10. Hiring Pitch — candidate-facing recruiting deck
+  // --------------------------------------------------------------
+  {
+    slug: 'hiring-pitch',
+    title: 'Hiring Pitch (for Candidates)',
+    tagline: 'The 6-slide deck you send to a candidate <em>before</em> the first call.',
+    description:
+      'Your candidate is interviewing you too. This is the "why should I leave $BigCo" answer as a deck they can re-read after the call. Works equally well for founding-team hires and senior ICs.',
+    inspiredBy: 'Vercel careers page · Anthropic hiring pages · Ramp founder memos',
+    category: 'recruiting',
+    seoKeywords: [
+      'startup hiring deck template',
+      'founding team recruitment deck',
+      'engineering hiring pitch template',
+      'senior IC recruiting deck',
+    ],
+    slides: [
+      {
+        layoutId: 'cover',
+        layout: {
+          eyebrow: 'for <em>you</em>, before the first call',
+          title: 'Why <em>this</em>, why <em>now</em>.',
+          subtitle: 'Five minutes · then decide if it\'s worth a 30-min call.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'headline',
+        layout: {
+          eyebrow: 'the mission',
+          title: 'We\'re doing <em>one specific thing</em>.',
+          subtitle: 'And we believe it\'s the most leveraged use of a senior engineer\'s decade.',
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'bigNumber',
+        layout: {
+          eyebrow: 'traction',
+          prefix: '$',
+          number: '2.4',
+          unit: 'M ARR',
+          caption: '<em>+18%</em> MoM · 94% gross margin · capital-efficient.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'grid',
+        layout: {
+          title: 'The <em>team</em> you\'d join.',
+          items: [
+            { title: 'Founders', body: 'ex-Stripe · ex-Figma' },
+            { title: 'Eng', body: 'ex-Retool · ex-Linear' },
+            { title: 'Product', body: 'ex-Notion · ex-Superhuman' },
+            { title: 'Ops', body: 'ex-Ramp · ex-Mercury' },
+          ],
+        },
+        background: { kind: 'cream' },
+      },
+      {
+        layoutId: 'twoColumn',
+        layout: {
+          headline: 'The <em>offer</em>.',
+          leftTitle: 'Compensation',
+          leftBody: 'Top-of-band cash · <em>0.25-0.75%</em> equity · 10-year exercise window · fully remote-first.',
+          rightTitle: 'Day-to-day',
+          rightBody: 'Write-heavy culture · 1 meeting-free day per week · quarterly onsite · $3K/year learning budget.',
+        },
+        background: { kind: 'paper' },
+      },
+      {
+        layoutId: 'thanks',
+        layout: { title: 'Grab <em>30 minutes</em>?' },
+        background: { kind: 'cream' },
+        notes: 'Verbal close: paste Calendly link, offer three concrete times, follow up in 48h if no reply.',
+      },
+    ],
+  },
 ];
 
 export function getTemplate(slug: string): Template | undefined {
