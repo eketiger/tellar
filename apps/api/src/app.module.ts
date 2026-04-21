@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { GdprModule } from './gdpr/gdpr.module';
 import { SuperAdminModule } from './superadmin/superadmin.module';
 import { SlideImagesModule } from './slide-images/slide-images.module';
+import { GoogleModule } from './google/google.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { SlideImagesModule } from './slide-images/slide-images.module';
     GdprModule,
     SuperAdminModule,
     SlideImagesModule,
+    GoogleModule,
   ],
 })
 export class AppModule {}

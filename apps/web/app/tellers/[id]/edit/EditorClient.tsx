@@ -26,6 +26,7 @@ import { CopilotPanel } from './CopilotPanel';
 import { LayoutPicker } from './LayoutPicker';
 import { PresentMode } from './PresentMode';
 import { MarkdownImport, type ParsedSlide } from './MarkdownImport';
+import { GoogleSlidesImport } from './GoogleSlidesImport';
 import { GradientPicker } from './GradientPicker';
 import { FormatToolbar, execInlineCmd } from './FormatToolbar';
 import { LAYOUTS, RenderSlide, readFontFamily, readFontScale, type Background, type BackgroundKind, type FontFamily } from '@/lib/slide-layouts';
@@ -108,6 +109,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [imagePickerSlot, setImagePickerSlot] = useState<string | null>(null);
   const [presenting, setPresenting] = useState(false);
   const [importingMd, setImportingMd] = useState(false);
+  const [importingGslides, setImportingGslides] = useState(false);
   const [showGradient, setShowGradient] = useState(false);
   const gradientBtnRef = useRef<HTMLButtonElement | null>(null);
   const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -541,6 +543,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
             <h3>Slides · {teller.slides.length}</h3>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setImportingMd(true)} title="Import from markdown" style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.1em', padding: '0 6px', width: 'auto', borderRadius: 2 }}>md</button>
+              <button onClick={() => setImportingGslides(true)} title="Import from Google Slides" style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.1em', padding: '0 6px', width: 'auto', borderRadius: 2 }}>gs</button>
               <button onClick={() => addSlide()} title="Add slide">+</button>
             </div>
           </div>
@@ -745,6 +748,18 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
       {importingMd && (
         <MarkdownImport onImport={importMarkdownSlides} onClose={() => setImportingMd(false)} />
+      )}
+
+      {importingGslides && (
+        <GoogleSlidesImport
+          tellerId={teller.id}
+          onDone={(count) => {
+            setImportingGslides(false);
+            flashToast(`${count} slide${count === 1 ? '' : 's'} imported — refreshing…`);
+            setTimeout(() => window.location.reload(), 800);
+          }}
+          onClose={() => setImportingGslides(false)}
+        />
       )}
 
       {showGradient && (
