@@ -8,6 +8,61 @@ export interface ParsedSlide {
 }
 
 /**
+ * Convert the subset of inline markdown the sanitizer allows (<em>, <strong>,
+ * <i>, <b>, <br>) into the equivalent HTML. Anything else stays plain text.
+ *
+ * Mapping:
+ *   **text** or __text__  → <strong>text</strong>
+ *   *text* or _text_      → <em>text</em>      (our accent marker)
+ *   ***text***            → <strong><em>text</em></strong>
+ *   `text`                → <i>text</i>        (treat inline code as italic —
+ *                                                no monospace in slides anyway)
+ *   trailing "  " on a line → <br>
+ *
+ * HTML in the source is escaped first so users can paste markdown safely
+ * without injecting script tags.
+ */
+export function mdInlineToHtml(input: string): string {
+  if (!input) return '';
+  let out = input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Trailing two-space → <br>.
+  out = out.replace(/ {2,}\n/g, '<br>\n');
+
+  // Stash markdown escapes (\* \_ \` \~) so they pass through the converter
+  // untouched. We use bracketed ASCII sentinels the HTML-escape above strips
+  // of risk (no <, >, & survive here).
+  const STASH: Record<string, string> = {
+    '*': '[[MD-ESC-A]]',
+    '_': '[[MD-ESC-B]]',
+    '`': '[[MD-ESC-C]]',
+    '~': '[[MD-ESC-D]]',
+  };
+  out = out.replace(/\\([*_`~])/g, (_m, c) => STASH[c as '*' | '_' | '`' | '~'] || c);
+
+  // Bold + italic (***x***) first.
+  out = out.replace(/\*\*\*([^*\n]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  // Bold.
+  out = out.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/__([^_\n]+?)__/g, '<strong>$1</strong>');
+  // Italic / emphasis. Both single-asterisk and single-underscore map to
+  // <em> — matching the viewer convention that <em> is the accent color.
+  out = out.replace(/(^|[^*\w])\*([^*\n]+?)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
+  out = out.replace(/(^|[^_\w])_([^_\n]+?)_(?=[^\w_]|$)/g, '$1<em>$2</em>');
+  // Inline code → italic (no monospace style per slot).
+  out = out.replace(/`([^`\n]+?)`/g, '<i>$1</i>');
+
+  // Restore the stashed escape characters.
+  for (const [ch, token] of Object.entries(STASH)) {
+    out = out.split(token).join(ch);
+  }
+  return out;
+}
+
+/**
  * Parse a markdown outline into slide specs.
  *
  * Conventions:
@@ -16,6 +71,10 @@ export interface ParsedSlide {
  *   Plain lines between headings → subtitle (first non-empty line).
  *   "Thank you." as a title → thanks layout.
  *   Content before the first heading becomes a cover slide.
+ *
+ * Inline markdown inside titles, subtitles and bullets is converted via
+ * mdInlineToHtml so **bold**, *em*, `code` and <br> survive into the slot
+ * value (the slide-layout sanitizer keeps exactly these tags).
  */
 export function parseMarkdownToSlides(md: string): ParsedSlide[] {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
@@ -30,21 +89,22 @@ export function parseMarkdownToSlides(md: string): ParsedSlide[] {
     for (const line of current.rest) {
       const t = line.trim();
       if (!t) continue;
-      if (/^[-*]\s+/.test(t)) bullets.push(t.replace(/^[-*]\s+/, '').trim());
-      else paragraphs.push(t);
+      if (/^[-*]\s+/.test(t)) bullets.push(mdInlineToHtml(t.replace(/^[-*]\s+/, '').trim()));
+      else paragraphs.push(mdInlineToHtml(t));
     }
-    const titleStr = current.title;
+    const title = mdInlineToHtml(current.title);
+    const plainTitle = current.title;
     if (bullets.length >= 2) {
-      slides.push({ layoutId: 'bullets', slots: { title: titleStr, bullets: bullets.slice(0, 6) } });
-    } else if (/^(thank\s*you|thanks|the\s*end|end)[.!]?$/i.test(titleStr.trim())) {
-      slides.push({ layoutId: 'thanks', slots: { title: titleStr } });
-    } else if (paragraphs.length === 1 && bullets.length === 0 && paragraphs[0].length < 32) {
-      slides.push({ layoutId: 'headline', slots: { title: titleStr, subtitle: paragraphs[0] } });
+      slides.push({ layoutId: 'bullets', slots: { title, bullets: bullets.slice(0, 6) } });
+    } else if (/^(thank\s*you|thanks|the\s*end|end)[.!]?$/i.test(plainTitle.trim())) {
+      slides.push({ layoutId: 'thanks', slots: { title } });
+    } else if (paragraphs.length === 1 && bullets.length === 0 && paragraphs[0].length < 64) {
+      slides.push({ layoutId: 'headline', slots: { title, subtitle: paragraphs[0] } });
     } else {
       slides.push({
         layoutId: 'headline',
         slots: {
-          title: titleStr,
+          title,
           subtitle: paragraphs.join(' ') || bullets[0] || '',
         },
       });
@@ -69,8 +129,8 @@ export function parseMarkdownToSlides(md: string): ParsedSlide[] {
     slides.unshift({
       layoutId: 'cover',
       slots: {
-        title: preamble[0],
-        subtitle: preamble.slice(1).join(' ') || '',
+        title: mdInlineToHtml(preamble[0]),
+        subtitle: mdInlineToHtml(preamble.slice(1).join(' ')) || '',
       },
     });
   }
