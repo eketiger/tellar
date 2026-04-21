@@ -20,6 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/lib/api';
 import { NarrationPanel } from './NarrationPanel';
+import { NotesPanel } from './NotesPanel';
 import { KbPanel } from './KbPanel';
 import { CopilotPanel } from './CopilotPanel';
 import { LayoutPicker } from './LayoutPicker';
@@ -42,7 +43,7 @@ interface Slide {
 }
 interface Teller { id: string; title: string; slides: Slide[]; kbSources: any[]; recordings: any[]; }
 
-type Tab = 'copilot' | 'knowledge' | 'recording';
+type Tab = 'copilot' | 'knowledge' | 'recording' | 'notes';
 
 interface SlideImage { id: string; name: string; url: string; }
 
@@ -644,6 +645,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
         <aside className="right-panel">
           <div className="rp-tabs">
             <button className={`rp-tab${tab === 'copilot' ? ' active' : ''}`} onClick={() => setTab('copilot')}>copilot</button>
+            <button className={`rp-tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>notes</button>
             <button className={`rp-tab${tab === 'knowledge' ? ' active' : ''}`} onClick={() => setTab('knowledge')}>
               kb<span className="badge">{teller.kbSources.length}</span>
             </button>
@@ -653,6 +655,13 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           </div>
 
           <div className="rp-content">
+            {tab === 'notes' && (
+              <NotesPanel
+                slide={active}
+                totalSlides={teller.slides.length}
+                onChange={(notes) => active && queueSave(active.id, { notes })}
+              />
+            )}
             {tab === 'copilot' && (
               <CopilotPanel
                 slideId={active?.id}
@@ -672,7 +681,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                 slides={teller.slides.map(s => ({ id: s.id, idx: s.idx, title: s.title, notes: s.notes }))}
                 active={active}
                 initialRecordings={teller.recordings as any}
-                onNotesChange={n => active && queueSave(active.id, { notes: n })}
+                onSelectSlide={setActiveId}
               />
             )}
           </div>

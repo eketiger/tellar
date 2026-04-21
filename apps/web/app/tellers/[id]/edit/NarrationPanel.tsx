@@ -90,13 +90,13 @@ export function NarrationPanel({
   slides,
   active,
   initialRecordings,
-  onNotesChange,
+  onSelectSlide,
 }: {
   tellerId: string;
   slides: Slide[];
   active: Slide | undefined;
   initialRecordings: Recording[];
-  onNotesChange: (notes: string) => void;
+  onSelectSlide: (slideId: string) => void;
 }) {
   const [mode, setMode] = useState<RecordingMode>('cam-mic');
   const [recordings, setRecordings] = useState<Recording[]>(initialRecordings);
@@ -443,6 +443,10 @@ export function NarrationPanel({
             return (
               <div
                 key={s.id}
+                onClick={() => onSelectSlide(s.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectSlide(s.id); } }}
                 style={{
                   padding: 10,
                   border: '1px solid ' + (isCurrent ? 'var(--accent)' : 'var(--line)'),
@@ -450,6 +454,8 @@ export function NarrationPanel({
                   display: 'flex',
                   gap: 10,
                   alignItems: 'center',
+                  cursor: 'pointer',
+                  transition: 'border-color .15s',
                 }}
               >
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', width: 22 }}>
@@ -471,7 +477,7 @@ export function NarrationPanel({
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button
                     disabled={!rec}
-                    onClick={() => rec && play(rec)}
+                    onClick={e => { e.stopPropagation(); if (rec) play(rec); }}
                     style={{
                       width: 24,
                       height: 24,
@@ -492,7 +498,7 @@ export function NarrationPanel({
                   </button>
                   {rec && (
                     <button
-                      onClick={() => deleteRec(rec.id)}
+                      onClick={e => { e.stopPropagation(); deleteRec(rec.id); }}
                       style={{
                         width: 24,
                         height: 24,
@@ -513,16 +519,6 @@ export function NarrationPanel({
             );
           })}
         </div>
-
-        {/* Speaker notes */}
-        <textarea
-          defaultValue={active?.notes || ''}
-          key={active?.id /* reset when switching slides */}
-          onBlur={e => onNotesChange(e.target.value)}
-          placeholder="Speaker notes…"
-          className="field-input"
-          style={{ marginTop: 16, minHeight: 90, fontFamily: 'var(--serif)', fontStyle: 'italic' }}
-        />
       </div>
 
       {playing && (
