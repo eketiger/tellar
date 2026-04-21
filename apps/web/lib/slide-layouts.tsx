@@ -21,9 +21,15 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { sanitizeSlideHtml } from './sanitize';
 
 export type SlotKind = 'text' | 'text[]' | 'image';
-export type BackgroundKind = 'cream' | 'paper' | 'midnight' | 'dark' | 'image';
+export type BackgroundKind = 'cream' | 'paper' | 'midnight' | 'dark' | 'image' | 'gradient';
 
-export interface Background { kind?: BackgroundKind; imageUrl?: string; }
+export interface Background {
+  kind?: BackgroundKind;
+  imageUrl?: string;
+  from?: string;
+  to?: string;
+  angle?: number;
+}
 export type Slots = Record<string, any>;
 
 export interface LayoutMeta {
@@ -45,12 +51,32 @@ const THEMES: Record<BackgroundKind, { bg: string; ink: string; sub: string; acc
   midnight: { bg: '#0c1220', ink: '#f4efe6', sub: '#a8afbe', accent: '#f4b942', eyebrow: '#5b627a', isDark: true  },
   dark:     { bg: '#1a1a1a', ink: '#f6f3ed', sub: '#a8a69e', accent: '#f4b942', eyebrow: '#6d6a63', isDark: true  },
   image:    { bg: '#0c0d0f', ink: '#f4efe6', sub: '#e8e6e1', accent: '#f4b942', eyebrow: '#e8e6e1', isDark: true  },
+  gradient: { bg: '#1a1a1a', ink: '#f6f3ed', sub: '#d8d2c5', accent: '#f4b942', eyebrow: '#a8a6a0', isDark: true  },
 };
+
+function hexLuminance(hex: string): number {
+  const m = hex.replace('#', '').match(/.{2}/g);
+  if (!m || m.length < 3) return 0.5;
+  const [r, g, b] = m.slice(0, 3).map(h => parseInt(h, 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
 
 type Theme = typeof THEMES.cream;
 
 function themeFor(bg: Background | undefined): { theme: Theme; wrapperStyle: CSSProperties } {
   const kind = bg?.kind || 'cream';
+  if (kind === 'gradient') {
+    const from = bg?.from || '#c89a3a';
+    const to = bg?.to || '#0c1220';
+    const angle = bg?.angle ?? 135;
+    // Heuristic: if both stops are light, flip to the cream theme so text stays readable.
+    const avgLum = (hexLuminance(from) + hexLuminance(to)) / 2;
+    const theme = avgLum > 0.55 ? THEMES.cream : THEMES.gradient;
+    return {
+      theme,
+      wrapperStyle: { background: `linear-gradient(${angle}deg, ${from}, ${to})`, color: theme.ink },
+    };
+  }
   const theme = THEMES[kind];
   const wrapperStyle: CSSProperties = {
     background: kind === 'image' && bg?.imageUrl ? `url(${bg.imageUrl}) center/cover` : theme.bg,

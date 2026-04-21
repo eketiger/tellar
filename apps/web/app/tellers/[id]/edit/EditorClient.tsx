@@ -25,14 +25,15 @@ import { CopilotPanel } from './CopilotPanel';
 import { LayoutPicker } from './LayoutPicker';
 import { PresentMode } from './PresentMode';
 import { MarkdownImport, type ParsedSlide } from './MarkdownImport';
-import { LAYOUTS, RenderSlide, type BackgroundKind } from '@/lib/slide-layouts';
+import { GradientPicker } from './GradientPicker';
+import { LAYOUTS, RenderSlide, type Background, type BackgroundKind } from '@/lib/slide-layouts';
 import './editor.css';
 
 interface Slide {
   id: string;
   idx: number;
   layoutId?: string;
-  background?: { kind?: BackgroundKind; imageUrl?: string } | null;
+  background?: Background | null;
   eyebrow: string | null;
   title: string;
   subtitle: string | null;
@@ -105,6 +106,8 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [imagePickerSlot, setImagePickerSlot] = useState<string | null>(null);
   const [presenting, setPresenting] = useState(false);
   const [importingMd, setImportingMd] = useState(false);
+  const [showGradient, setShowGradient] = useState(false);
+  const gradientBtnRef = useRef<HTMLButtonElement | null>(null);
   const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Undo/redo stacks of inverse patches. Coalesce same-slide+same-keys bursts
@@ -454,6 +457,11 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     queueSave(active.id, { background: { kind } });
   }
 
+  function setGradientBackground(bg: Background) {
+    if (!active) return;
+    queueSave(active.id, { background: bg });
+  }
+
   function applyThemeToAll(kind: BackgroundKind) {
     const nextBg = { kind };
     const before = teller.slides.map(s => ({ slideId: s.id, background: s.background ?? null }));
@@ -555,6 +563,19 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                 style={{ width: 22, height: 22, minWidth: 22, padding: 0, border: '1px solid ' + (activeBg.kind === t.kind ? 'var(--accent)' : 'var(--line-2)'), background: t.swatch, borderRadius: '50%', marginLeft: 2 }}
               />
             ))}
+            <button
+              ref={gradientBtnRef}
+              className={`tool-btn${showGradient ? ' active' : ''}`}
+              title="Gradient background"
+              onClick={() => setShowGradient(p => !p)}
+              style={{
+                width: 22, height: 22, minWidth: 22, padding: 0,
+                border: '1px solid ' + (activeBg.kind === 'gradient' ? 'var(--accent)' : 'var(--line-2)'),
+                borderRadius: '50%',
+                marginLeft: 2,
+                background: `linear-gradient(135deg, ${activeBg.from || '#c89a3a'}, ${activeBg.to || '#0c1220'})`,
+              }}
+            />
             <button
               className="tool-btn"
               title="Apply current theme to every slide"
@@ -684,6 +705,15 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
       {importingMd && (
         <MarkdownImport onImport={importMarkdownSlides} onClose={() => setImportingMd(false)} />
+      )}
+
+      {showGradient && (
+        <GradientPicker
+          value={activeBg.kind === 'gradient' ? activeBg as Background : undefined}
+          anchorRef={gradientBtnRef}
+          onChange={setGradientBackground}
+          onCancel={() => setShowGradient(false)}
+        />
       )}
 
       <div className={`toast${toast ? ' show' : ''}`}>{toast}</div>
