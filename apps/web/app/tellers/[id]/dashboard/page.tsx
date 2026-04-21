@@ -68,10 +68,11 @@ export default async function TellerDashboard({ params }: { params: Promise<{ id
 
   const jar = await cookies();
   const ch = jar.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-  const [teller, metrics, share] = await Promise.all([
+  const [teller, metrics, share, sessionsData] = await Promise.all([
     apiServer<any>(`/tellers/${id}`, ch),
     apiServer<any>(`/tellers/${id}/analytics`, ch),
     apiServer<any>(`/tellers/${id}/share`, ch),
+    apiServer<any>(`/tellers/${id}/sessions`, ch).catch(() => ({ items: [], totalSlides: 0 })),
   ]);
   if (!teller) redirect('/dashboard');
 
@@ -84,16 +85,37 @@ export default async function TellerDashboard({ params }: { params: Promise<{ id
   const avgMin = Math.floor(m.avgSessionMs / 60_000);
   const avgSec = Math.round((m.avgSessionMs % 60_000) / 1000);
 
-  const recordings = topViewers.map((v: any, i: number) => {
+  const sessionsList = (sessionsData?.items || []).slice(0, 12);
+  const sessionsTotalSlides = sessionsData?.totalSlides || m.totalSlides || 1;
+  const recordings = sessionsList.map((s: any, i: number) => {
     const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length];
-    const durMs = v.dwellMs || 60_000;
+    const name = s.email
+      ? s.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+      : `Anonymous ${s.sessionId.slice(-4)}`;
+    const durMs = s.totalDwellMs || 0;
     const min = Math.floor(durMs / 60_000);
     const sec = Math.round((durMs % 60_000) / 1000);
-    const hoursAgo = Math.max(1, Math.floor((Date.now() - v.lastSeen) / 3_600_000));
-    const live = i === 0 && topViewers.length > 1;
-    const when = live ? 'in progress' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`;
-    const reachPct = Math.round((v.slidesSeen / Math.max(v.totalSlides, 1)) * 100);
-    return { idx: i, name: v.name, email: v.email, bg, fg, durMs, min, sec, when, live, slidesSeen: v.slidesSeen, totalSlides: v.totalSlides, reachPct };
+    const lastAt = new Date(s.lastAt).getTime();
+    const hoursAgo = Math.max(0, Math.floor((Date.now() - lastAt) / 3_600_000));
+    const live = Date.now() - lastAt < 60_000;
+    const when = live ? 'in progress' : hoursAgo < 1 ? 'just now' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`;
+    const reachPct = Math.round((s.slidesSeen / Math.max(sessionsTotalSlides, 1)) * 100);
+    return {
+      idx: i,
+      sessionId: s.sessionId,
+      name,
+      email: s.email || '',
+      bg,
+      fg,
+      durMs,
+      min,
+      sec,
+      when,
+      live,
+      slidesSeen: s.slidesSeen,
+      totalSlides: sessionsTotalSlides,
+      reachPct,
+    };
   });
 
   return (
@@ -260,9 +282,9 @@ export default async function TellerDashboard({ params }: { params: Promise<{ id
             <span className="aux">{recordings.length} sessions · {recordings.filter((r: { live: boolean }) => r.live).length ? '1 live · ' : ''}auto-captured</span>
           </header>
           <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-3)', margin: '-2px 0 16px', lineHeight: 1.5 }}>
-            Screen recordings of each viewer's path through the deck — see exactly where they paused, re-read, or bounced.
+            Every viewer session reconstructed from the analytics events — click any card to replay the path slide-by-slide with real dwell times.
           </p>
-          <SessionRecordings items={recordings} />
+          <SessionRecordings items={recordings} tellerId={id} />
         </section>
       </main>
       <NavDock tellerId={id} />

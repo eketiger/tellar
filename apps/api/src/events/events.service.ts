@@ -139,4 +139,98 @@ export class EventsService {
       viewers,
     };
   }
+
+  /**
+   * Per-session summary. One row per distinct sessionId, regardless of how
+   * many emails or IPs that session spanned. Newest first.
+   */
+  async sessions(tellerId: string) {
+    const totalSlides = await this.prisma.slide.count({ where: { tellerId } });
+    const events = await this.prisma.event.findMany({
+      where: { tellerId, OR: [{ type: 'SLIDE_VIEW' }, { type: 'SLIDE_DWELL' }, { type: 'AGENT_QUERY' }, { type: 'SHARE_OPEN' }] },
+      orderBy: { at: 'asc' },
+      select: { sessionId: true, email: true, slideIdx: true, dwellMs: true, at: true, type: true, meta: true },
+    });
+
+    const bySession = new Map<string, {
+      sessionId: string;
+      email: string | null;
+      startedAt: Date;
+      lastAt: Date;
+      slidesSeen: Set<number>;
+      maxSlideIdx: number;
+      totalDwellMs: number;
+      agentQueries: number;
+      eventCount: number;
+    }>();
+
+    for (const e of events) {
+      let s = bySession.get(e.sessionId);
+      if (!s) {
+        s = {
+          sessionId: e.sessionId,
+          email: e.email,
+          startedAt: e.at,
+          lastAt: e.at,
+          slidesSeen: new Set(),
+          maxSlideIdx: 0,
+          totalDwellMs: 0,
+          agentQueries: 0,
+          eventCount: 0,
+        };
+        bySession.set(e.sessionId, s);
+      }
+      s.lastAt = e.at;
+      s.eventCount += 1;
+      // Prefer whichever email we have seen — email can arrive late via SHARE_OPEN.
+      if (!s.email && e.email) s.email = e.email;
+      if (e.slideIdx != null) {
+        s.slidesSeen.add(e.slideIdx);
+        if (e.slideIdx > s.maxSlideIdx) s.maxSlideIdx = e.slideIdx;
+      }
+      if (e.dwellMs) s.totalDwellMs += e.dwellMs;
+      if (e.type === 'AGENT_QUERY') s.agentQueries += 1;
+    }
+
+    return {
+      totalSlides,
+      items: Array.from(bySession.values())
+        .map(s => ({
+          sessionId: s.sessionId,
+          email: s.email,
+          startedAt: s.startedAt,
+          lastAt: s.lastAt,
+          slidesSeen: s.slidesSeen.size,
+          maxSlideIdx: s.maxSlideIdx,
+          totalDwellMs: s.totalDwellMs,
+          agentQueries: s.agentQueries,
+          eventCount: s.eventCount,
+        }))
+        .sort((a, b) => b.lastAt.getTime() - a.lastAt.getTime()),
+    };
+  }
+
+  /**
+   * Full ordered timeline for one session. Used by the dashboard replay.
+   * Returns the slides of the teller (so the client can render them) plus
+   * every SLIDE_VIEW / SLIDE_DWELL / AGENT_QUERY captured for that session.
+   */
+  async sessionTimeline(tellerId: string, sessionId: string) {
+    const [events, slides] = await Promise.all([
+      this.prisma.event.findMany({
+        where: { tellerId, sessionId },
+        orderBy: { at: 'asc' },
+        select: { id: true, type: true, slideIdx: true, dwellMs: true, at: true, meta: true, email: true },
+      }),
+      this.prisma.slide.findMany({
+        where: { tellerId },
+        orderBy: { idx: 'asc' },
+        select: {
+          id: true, idx: true, layoutId: true, background: true, layout: true,
+          eyebrow: true, title: true, subtitle: true, notes: true,
+        },
+      }),
+    ]);
+    return { sessionId, tellerId, events, slides };
+  }
 }

@@ -29,4 +29,16 @@ export class EventsController {
   analytics(@Param('tellerId') tellerId: string) {
     return this.svc.funnel(tellerId);
   }
+
+  @Get('tellers/:tellerId/sessions')
+  @UseGuards(JwtGuard, WorkspaceGuard)
+  sessions(@Param('tellerId') tellerId: string) {
+    return this.svc.sessions(tellerId);
+  }
+
+  @Get('tellers/:tellerId/sessions/:sessionId')
+  @UseGuards(JwtGuard, WorkspaceGuard)
+  sessionReplay(@Param('tellerId') tellerId: string, @Param('sessionId') sessionId: string) {
+    return this.svc.sessionTimeline(tellerId, sessionId);
+  }
 }

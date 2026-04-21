@@ -135,6 +135,24 @@ function Viewer({ data, email }: { data: ShareData; email: string }) {
     ));
   }, [idx, data, email, sessionId]);
 
+  // Flush dwell on page hide so the last slide's time isn't lost when the
+  // viewer closes the tab, navigates away, or backgrounds the app on mobile.
+  useEffect(() => {
+    function onHide() {
+      const dwellMs = Date.now() - dwellStartRef.current;
+      if (dwellMs < 250) return;
+      navigator.sendBeacon?.('/api/events', new Blob(
+        [JSON.stringify({ type: 'SLIDE_DWELL', tellerId: data.teller.id, shareId: data.share.id, sessionId, email, slideIdx: idx, dwellMs })],
+        { type: 'application/json' },
+      ));
+    }
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') onHide(); });
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+    };
+  }, [idx, data.teller.id, data.share.id, sessionId, email]);
+
   // Load narration blob when slide changes
   useEffect(() => {
     const v = narratorVideoRef.current;
