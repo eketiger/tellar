@@ -75,6 +75,7 @@ function EditableText({
   multiline,
   className,
   style,
+  name,
   onChange,
 }: {
   html: string;
@@ -82,6 +83,7 @@ function EditableText({
   multiline?: boolean;
   className?: string;
   style?: CSSProperties;
+  name?: string;
   onChange: (value: string) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -103,6 +105,7 @@ function EditableText({
       suppressContentEditableWarning
       className={`slot-edit${className ? ' ' + className : ''}`}
       data-placeholder={placeholder || ''}
+      data-slot-name={name || ''}
       style={style}
       onKeyDown={(e) => {
         if (!multiline && e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLDivElement).blur(); }
@@ -151,6 +154,7 @@ function TextSlot({
         multiline={multiline}
         className={className}
         style={style}
+        name={name}
         onChange={v => edit.onSlotChange(name, v)}
       />
     );
@@ -382,7 +386,7 @@ const BulletsLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edi
                 {String(i + 1).padStart(2, '0')}
               </span>
               {editable
-                ? <EditableText html={html} placeholder="Bullet…" style={lineStyle} onChange={onChange} />
+                ? <EditableText html={html} placeholder="Bullet…" style={lineStyle} name="bullets" onChange={onChange} />
                 : <span style={lineStyle} dangerouslySetInnerHTML={{ __html: applyAccent(sanitizeSlideHtml(html), theme.accent) }} />}
             </li>
           )}
@@ -408,12 +412,14 @@ const GridLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?:
                 <EditableText
                   html={it.title || ''}
                   placeholder="Name"
+                  name="items"
                   style={{ fontFamily: 'var(--serif)', fontSize: 18, color: theme.ink, fontWeight: 500 }}
                   onChange={v => update(items.map((x, j) => j === i ? { ...x, title: v } : x))}
                 />
                 <EditableText
                   html={it.body || ''}
                   placeholder="role"
+                  name="items"
                   style={{ fontFamily: 'var(--mono)', fontSize: 10, color: theme.sub, letterSpacing: '.1em', textTransform: 'uppercase' }}
                   onChange={v => update(items.map((x, j) => j === i ? { ...x, body: v } : x))}
                 />
@@ -483,7 +489,7 @@ const ComparisonLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; 
                   <div key={j} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <span style={{ color: col.color, flexShrink: 0, fontFamily: 'var(--serif)', fontSize: 17 }}>{col.icon}</span>
                     {editable
-                      ? <EditableText html={html} placeholder="Point…" style={lineStyle} onChange={onChange} />
+                      ? <EditableText html={html} placeholder="Point…" style={lineStyle} name={col.listKey} onChange={onChange} />
                       : <span style={lineStyle}>{html}</span>}
                   </div>
                 )}

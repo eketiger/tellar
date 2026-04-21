@@ -107,6 +107,9 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const undoStackRef = useRef<HistoryEntry[]>([]);
   const redoStackRef = useRef<HistoryEntry[]>([]);
   const lastPushRef = useRef<{ slideId: string; keys: string; at: number } | null>(null);
+  // Slot-level clipboard (⌘⇧C / ⌘⇧V). Separate from the OS text clipboard so
+  // the user's in-page text selection keeps behaving normally.
+  const slotClipboardRef = useRef<{ name: string; value: any } | null>(null);
 
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -130,6 +133,33 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
   function flashToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 1600); }
 
+  function currentSlotName(): string | null {
+    const el = document.activeElement as HTMLElement | null;
+    return el?.getAttribute('data-slot-name') || null;
+  }
+
+  function copySlot() {
+    const name = currentSlotName();
+    if (!name || !active) { flashToast('Click a slot first'); return; }
+    const value = activeSlots[name];
+    if (value == null || value === '') { flashToast(`${name} is empty`); return; }
+    slotClipboardRef.current = { name, value };
+    flashToast(`Copied ${name}`);
+  }
+
+  function pasteSlot() {
+    const clip = slotClipboardRef.current;
+    if (!clip) { flashToast('Nothing copied'); return; }
+    if (!active) return;
+    const layout = LAYOUTS[activeLayoutId];
+    if (!layout.slots[clip.name]) {
+      flashToast(`This layout has no "${clip.name}" slot`);
+      return;
+    }
+    setSlot(clip.name, clip.value);
+    flashToast(`Pasted ${clip.name}`);
+  }
+
   // Global Cmd+Z / Cmd+Shift+Z (or Cmd+Y) → undo/redo.
   // While the user is actively typing in a contentEditable/input, let the
   // browser handle its own native undo first — our stack still captures the
@@ -144,8 +174,21 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
         return;
       }
       if (mod) {
-        if (editable) return;
         const k = e.key.toLowerCase();
+        // ⌘⇧C / ⌘⇧V work even while a slot is focused — that's the whole
+        // point: copy what you're editing, move to another slide, paste.
+        if (e.shiftKey && k === 'c') {
+          e.preventDefault();
+          copySlot();
+          return;
+        }
+        if (e.shiftKey && k === 'v') {
+          e.preventDefault();
+          (document.activeElement as HTMLElement | null)?.blur?.();
+          pasteSlot();
+          return;
+        }
+        if (editable) return;
         if (k === 'z' || k === 'y') {
           e.preventDefault();
           if (k === 'y' || (k === 'z' && e.shiftKey)) redo();
