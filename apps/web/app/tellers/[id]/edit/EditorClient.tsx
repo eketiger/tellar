@@ -190,6 +190,22 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
               />
             ))}
             <div style={{ flex: 1 }} />
+            <span
+              title={saveState === 'saved' ? 'All changes saved' : 'Saving…'}
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 10,
+                letterSpacing: '.1em',
+                color: saveState === 'saved' ? 'var(--good)' : 'var(--accent)',
+                marginRight: 8,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
+              {saveState === 'saved' ? 'saved' : 'saving…'}
+            </span>
             {active && (
               <button className="tool-btn" onClick={() => removeSlide(active.id)} title="Delete slide" style={{ color: 'var(--bad)' }}>
                 <svg width={13} height={13} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M3 3l8 8M11 3l-8 8" /></svg>
@@ -273,10 +289,6 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           onCancel={() => setShowPicker(null)}
         />
       )}
-
-      <div style={{ position: 'fixed', top: 14, right: 180, fontFamily: 'var(--mono)', fontSize: 10, color: saveState === 'saved' ? 'var(--good)' : 'var(--accent)', letterSpacing: '.1em', zIndex: 60 }}>
-        {saveState === 'saved' ? '● saved' : '● saving…'}
-      </div>
 
       <div className={`toast${toast ? ' show' : ''}`}>{toast}</div>
     </>
