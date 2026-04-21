@@ -26,6 +26,33 @@ type Tab = 'copilot' | 'knowledge' | 'recording';
 
 interface SlideImage { id: string; name: string; url: string; }
 
+/** One reversible edit — the forward patch plus the values it overwrote. */
+interface HistoryEntry {
+  slideId: string;
+  patch: Partial<Slide> & { layout?: any };
+  inverse: Partial<Slide> & { layout?: any };
+}
+
+const HISTORY_LIMIT = 80;
+const COALESCE_MS = 600;
+
+/** Extract the values in `slide` for the keys being patched, so we can undo. */
+function inverseOf(slide: Slide | undefined, patch: Record<string, any>): Record<string, any> {
+  if (!slide) return {};
+  const inv: Record<string, any> = {};
+  for (const k of Object.keys(patch)) {
+    inv[k] = (slide as any)[k] ?? null;
+  }
+  return inv;
+}
+
+function targetIsEditable(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA';
+}
+
 const THEMES: { kind: BackgroundKind; label: string; swatch: string }[] = [
   { kind: 'cream',    label: 'Cream',    swatch: '#f6f3ed' },
   { kind: 'paper',    label: 'Paper',    swatch: '#ece7db' },
@@ -53,6 +80,11 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [imagePickerSlot, setImagePickerSlot] = useState<string | null>(null);
   const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Undo/redo stacks of inverse patches. Coalesce same-slide+same-keys bursts
+  // within 600ms so rapid typing sessions count as one history entry.
+  const undoStackRef = useRef<HistoryEntry[]>([]);
+  const redoStackRef = useRef<HistoryEntry[]>([]);
+  const lastPushRef = useRef<{ slideId: string; keys: string; at: number } | null>(null);
 
   const active = teller.slides.find(s => s.id === activeId);
   const activeLayoutId = active?.layoutId || 'headline';
@@ -61,7 +93,48 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
   function flashToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 1600); }
 
-  function queueSave(slideId: string, patch: Partial<Slide> & { layout?: any }) {
+  // Global Cmd+Z / Cmd+Shift+Z (or Cmd+Y) → undo/redo.
+  // While the user is actively typing in a contentEditable/input, let the
+  // browser handle its own native undo first — our stack still captures the
+  // final value on blur, so we don't lose anything.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const k = e.key.toLowerCase();
+      if (k !== 'z' && k !== 'y') return;
+      if (targetIsEditable(e.target)) return;
+      e.preventDefault();
+      if (k === 'y' || (k === 'z' && e.shiftKey)) redo();
+      else undo();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // undo/redo close over teller via queueSave; re-bind on teller change is fine.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teller, activeId]);
+
+  function queueSave(slideId: string, patch: Partial<Slide> & { layout?: any }, opts: { trackHistory?: boolean } = {}) {
+    const trackHistory = opts.trackHistory !== false;
+    if (trackHistory) {
+      const before = teller.slides.find(s => s.id === slideId);
+      const inverse = inverseOf(before, patch);
+      const keys = Object.keys(patch).sort().join(',');
+      const now = Date.now();
+      const last = lastPushRef.current;
+      // Coalesce rapid edits on the same slide+fields into the same history entry.
+      const canCoalesce = last && last.slideId === slideId && last.keys === keys && (now - last.at) < COALESCE_MS;
+      if (!canCoalesce) {
+        undoStackRef.current.push({ slideId, patch, inverse });
+        if (undoStackRef.current.length > HISTORY_LIMIT) undoStackRef.current.shift();
+        redoStackRef.current = [];
+      } else {
+        // Update forward patch so redo reflects the latest value.
+        const top = undoStackRef.current[undoStackRef.current.length - 1];
+        if (top) top.patch = { ...top.patch, ...patch };
+      }
+      lastPushRef.current = { slideId, keys, at: now };
+    }
     setTeller(t => ({
       ...t,
       slides: t.slides.map(s => s.id === slideId ? { ...s, ...patch, layout: patch.layout ?? s.layout } : s),
@@ -72,6 +145,26 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       try { await api(`/slides/${slideId}`, { method: 'PATCH', json: patch }); }
       finally { setSaveState('saved'); }
     }, 300);
+  }
+
+  function undo() {
+    const entry = undoStackRef.current.pop();
+    if (!entry) { flashToast('Nothing to undo'); return; }
+    redoStackRef.current.push(entry);
+    lastPushRef.current = null;
+    queueSave(entry.slideId, entry.inverse, { trackHistory: false });
+    if (entry.slideId !== activeId) setActiveId(entry.slideId);
+    flashToast('Undo');
+  }
+
+  function redo() {
+    const entry = redoStackRef.current.pop();
+    if (!entry) { flashToast('Nothing to redo'); return; }
+    undoStackRef.current.push(entry);
+    lastPushRef.current = null;
+    queueSave(entry.slideId, entry.patch, { trackHistory: false });
+    if (entry.slideId !== activeId) setActiveId(entry.slideId);
+    flashToast('Redo');
   }
 
   async function addSlide(layoutId: string = 'headline') {
