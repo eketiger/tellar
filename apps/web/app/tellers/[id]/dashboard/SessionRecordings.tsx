@@ -241,7 +241,17 @@ function PlaybackModal({
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ maxWidth: 1120, width: '100%', background: 'var(--panel)', border: '1px solid var(--line-2)', cursor: 'default', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}
+        style={{
+          maxWidth: 860,
+          width: '100%',
+          maxHeight: '84vh',
+          background: 'var(--panel)',
+          border: '1px solid var(--line-2)',
+          cursor: 'default',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
       >
         {/* Header */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -265,7 +275,7 @@ function PlaybackModal({
         </div>
 
         {/* Stage */}
-        <div style={{ aspectRatio: '16/10', background: '#0c0d0f', position: 'relative' }}>
+        <div style={{ aspectRatio: '16/10', background: '#0c0d0f', position: 'relative', flexShrink: 1, minHeight: 0, maxHeight: '52vh' }}>
           {!timeline && !err && (
             <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase' }}>
               Loading timeline…
@@ -294,23 +304,23 @@ function PlaybackModal({
           )}
         </div>
 
-        {/* Transport */}
-        <div style={{ padding: '10px 16px', background: 'var(--panel-2)', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Transport — flex-shrink:0 on side elements so a long session
+            never pushes the speed buttons off the row. */}
+        <div style={{ padding: '10px 14px', background: 'var(--panel-2)', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <button
             onClick={() => setPlaying(p => !p)}
             disabled={!segments.length}
-            style={{ width: 30, height: 30, border: '1px solid var(--line-2)', background: playing ? 'var(--accent)' : 'var(--panel)', color: playing ? '#0c0d0f' : 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 28, height: 28, minWidth: 28, flexShrink: 0, border: '1px solid var(--line-2)', background: playing ? 'var(--accent)' : 'var(--panel)', color: playing ? '#0c0d0f' : 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label={playing ? 'Pause' : 'Play'}
           >
             {playing
               ? <svg width={10} height={10} viewBox="0 0 10 10" fill="currentColor"><rect x={1} width={3} height={10} /><rect x={6} width={3} height={10} /></svg>
               : <svg width={10} height={10} viewBox="0 0 10 10" fill="currentColor"><path d="M1 0l8 5-8 5z" /></svg>}
           </button>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)', letterSpacing: '.1em', minWidth: 90 }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-2)', letterSpacing: '.08em', flexShrink: 0, width: 80, textAlign: 'center' }}>
             {fmt(elapsedMs)} / {fmt(totalMs)}
           </span>
-          <div style={{ flex: 1, height: 6, background: 'var(--line)', position: 'relative' }}>
-            {/* Segment markers */}
+          <div style={{ flex: '1 1 0', minWidth: 60, height: 6, background: 'var(--line)', position: 'relative', overflow: 'hidden' }}>
             {segments.map((seg, i) => (
               <div
                 key={i}
@@ -319,7 +329,7 @@ function PlaybackModal({
                 style={{
                   position: 'absolute',
                   left: `${(seg.startMs / Math.max(totalMs, 1)) * 100}%`,
-                  width: `${(seg.durationMs / Math.max(totalMs, 1)) * 100}%`,
+                  width: `${Math.max(0.5, (seg.durationMs / Math.max(totalMs, 1)) * 100)}%`,
                   top: 0,
                   bottom: 0,
                   borderLeft: i ? '1px solid var(--bg)' : undefined,
@@ -329,16 +339,16 @@ function PlaybackModal({
               />
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 2 }}>
+          <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
             {[1, 2, 4].map(n => (
               <button
                 key={n}
                 onClick={() => setSpeed(n as 1 | 2 | 4)}
                 style={{
-                  width: 30, height: 22, border: '1px solid var(--line-2)',
+                  width: 26, height: 22, border: '1px solid var(--line-2)',
                   background: speed === n ? 'var(--accent)' : 'transparent',
                   color: speed === n ? '#0c0d0f' : 'var(--ink-2)',
-                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.1em', cursor: 'pointer',
+                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.05em', cursor: 'pointer', padding: 0,
                 }}
               >
                 {n}x
@@ -349,7 +359,7 @@ function PlaybackModal({
 
         {/* Segment list */}
         {segments.length > 0 && (
-          <div style={{ padding: '12px 16px', background: 'var(--bg-2)', borderTop: '1px solid var(--line)', display: 'flex', flexWrap: 'wrap', gap: 8, overflowY: 'auto', maxHeight: 150 }}>
+          <div style={{ padding: '10px 14px', background: 'var(--bg-2)', borderTop: '1px solid var(--line)', display: 'flex', flexWrap: 'wrap', gap: 6, overflowY: 'auto', maxHeight: 110, flexShrink: 0 }}>
             {segments.map((seg, i) => (
               <button
                 key={i}
