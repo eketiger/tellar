@@ -23,6 +23,7 @@ import { NarrationPanel } from './NarrationPanel';
 import { KbPanel } from './KbPanel';
 import { CopilotPanel } from './CopilotPanel';
 import { LayoutPicker } from './LayoutPicker';
+import { PresentMode } from './PresentMode';
 import { LAYOUTS, RenderSlide, type BackgroundKind } from '@/lib/slide-layouts';
 import './editor.css';
 
@@ -101,6 +102,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [toast, setToast] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [imagePickerSlot, setImagePickerSlot] = useState<string | null>(null);
+  const [presenting, setPresenting] = useState(false);
   const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Undo/redo stacks of inverse patches. Coalesce same-slide+same-keys bursts
@@ -199,6 +201,11 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
         if (k === 'd' && !e.shiftKey) {
           e.preventDefault();
           if (activeId) duplicateSlide(activeId);
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          setPresenting(true);
           return;
         }
         return;
@@ -528,6 +535,14 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
               apply all
             </button>
             <div style={{ flex: 1 }} />
+            <button
+              className="tool-btn"
+              title="Present (⌘Enter)"
+              onClick={() => setPresenting(true)}
+              style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.15em', padding: '0 10px', height: 24, textTransform: 'uppercase', border: '1px solid var(--line-2)', color: 'var(--accent)', marginRight: 10 }}
+            >
+              ▶ present
+            </button>
             <span
               title={saveState === 'saved' ? 'All changes saved' : 'Saving…'}
               style={{
@@ -627,6 +642,14 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           tellerId={teller.id}
           onPick={img => { setSlot(imagePickerSlot, img); setImagePickerSlot(null); flashToast('Image updated'); }}
           onClose={() => setImagePickerSlot(null)}
+        />
+      )}
+
+      {presenting && (
+        <PresentMode
+          slides={teller.slides}
+          startIndex={Math.max(0, teller.slides.findIndex(s => s.id === activeId))}
+          onClose={() => setPresenting(false)}
         />
       )}
 
