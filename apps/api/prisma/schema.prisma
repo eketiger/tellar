@@ -202,20 +202,30 @@ model Invitee {
 }
 
 model Recording {
-  id         String   @id @default(cuid())
-  tellerId   String
-  teller     Teller   @relation(fields: [tellerId], references: [id])
-  slideId    String?
-  mode       String
-  durationMs Int
-  sizeBytes  Int
-  s3Key      String
-  transcript String?  @db.Text
-  status     String   @default("uploading")
-  createdAt  DateTime @default(now())
+  id                String   @id @default(cuid())
+  tellerId          String
+  teller            Teller   @relation(fields: [tellerId], references: [id])
+  slideId           String?
+  mode              String
+  durationMs        Int
+  sizeBytes         Int
+  s3Key             String
+  transcript        String?  @db.Text
+  status            String   @default("uploading")
+  createdAt         DateTime @default(now())
+
+  // Whole-deck recordings store one s3 file referenced by many child rows.
+  // Children have parentRecordingId set + startOffsetMs/endOffsetMs carving
+  // out their segment of the parent. The parent is a headless row (slideId
+  // = null); the viewer always streams from the parent and seeks to the
+  // child's offsets.
+  parentRecordingId String?
+  startOffsetMs     Int      @default(0)
+  endOffsetMs       Int?
 
   @@index([tellerId])
   @@index([slideId])
+  @@index([parentRecordingId])
 }
 
 model KBSource {

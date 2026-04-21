@@ -99,12 +99,21 @@ export function NarrationPanel({
   onSelectSlide: (slideId: string) => void;
 }) {
   const [mode, setMode] = useState<RecordingMode>('cam-mic');
+  const [scope, setScope] = useState<'slide' | 'deck'>('slide');
   const [recordings, setRecordings] = useState<Recording[]>(initialRecordings);
   const [isRecording, setIsRecording] = useState(false);
   const [preview, setPreview] = useState<MediaStream | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState<{ url: string; mime: string } | null>(null);
+
+  // Whole-deck recording carries the slide being narrated in a ref so the
+  // MediaRecorder.onstop closure reads the latest index; setSlideIdx
+  // fires on every nextSlideDuringRecording() call.
+  const [liveSlideIdx, setLiveSlideIdx] = useState<number>(0);
+  const deckSplitsRef = useRef<Array<{ slideId: string; startMs: number; endMs: number }>>([]);
+  const currentSegmentStartRef = useRef<number>(0);
+  const currentSegmentSlideIdRef = useRef<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -160,13 +169,53 @@ export function NarrationPanel({
     }
   }
 
+  /** Close the current deck segment and open one for the next slide. */
+  function advanceDeckSegment(nextSlideId: string | null) {
+    const now = Date.now() - startedAtRef.current;
+    const prevSlideId = currentSegmentSlideIdRef.current;
+    if (prevSlideId) {
+      deckSplitsRef.current.push({
+        slideId: prevSlideId,
+        startMs: currentSegmentStartRef.current,
+        endMs: now,
+      });
+    }
+    if (nextSlideId) {
+      currentSegmentSlideIdRef.current = nextSlideId;
+      currentSegmentStartRef.current = now;
+    } else {
+      currentSegmentSlideIdRef.current = null;
+    }
+  }
+
+  // Observe slide changes while recording in deck scope and seal/open
+  // segments in response. We intentionally read isRecording/scope via refs
+  // so changing either mid-take doesn't replay stale effects.
+  const isRecordingRef = useRef(isRecording);
+  const scopeRef = useRef(scope);
+  useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+  useEffect(() => { scopeRef.current = scope; }, [scope]);
+  useEffect(() => {
+    if (!isRecordingRef.current || scopeRef.current !== 'deck') return;
+    if (!active) return;
+    if (currentSegmentSlideIdRef.current === active.id) return;
+    advanceDeckSegment(active.id);
+    setLiveSlideIdx(active.idx);
+    // advanceDeckSegment is a stable helper — no dep required.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id]);
+
   async function toggle() {
     if (isRecording) {
       recorderRef.current?.stop();
       return;
     }
-    if (!active) {
+    if (scope === 'slide' && !active) {
       setError('Select a slide first.');
+      return;
+    }
+    if (scope === 'deck' && slides.length === 0) {
+      setError('Deck has no slides.');
       return;
     }
     const stream = preview ?? (await startPreview(mode));
@@ -190,6 +239,12 @@ export function NarrationPanel({
     recorderRef.current = rec;
     chunksRef.current = [];
     rec.ondataavailable = e => e.data.size && chunksRef.current.push(e.data);
+
+    // Capture scope + starting slide at record start so onstop reads a stable
+    // snapshot (scope may have changed by the time the user hits stop).
+    const recScope = scope;
+    const startingSlide = scope === 'deck' ? slides[0] : active;
+
     rec.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: mime });
       const durationMs = Date.now() - startedAtRef.current;
@@ -198,22 +253,65 @@ export function NarrationPanel({
       setElapsed(0);
       stream.getTracks().forEach(t => t.stop());
       setPreview(null);
+
+      // For deck scope, seal the last open segment.
+      if (recScope === 'deck') advanceDeckSegment(null);
+
       try {
         const up = await api<{ id: string; uploadUrl: string; method: string; headers: Record<string, string> }>(
           '/recordings/upload-url',
-          { method: 'POST', json: { tellerId, slideId: active.id, mode, contentType: mime } },
+          {
+            method: 'POST',
+            json: {
+              tellerId,
+              slideId: recScope === 'slide' ? startingSlide?.id : null,
+              mode,
+              contentType: mime,
+            },
+          },
         );
         await fetch(up.uploadUrl, { method: up.method, body: blob, headers: up.headers });
-        const saved = await api<Recording>(`/recordings/${up.id}/confirm`, {
+        const parent = await api<Recording>(`/recordings/${up.id}/confirm`, {
           method: 'POST',
           json: { sizeBytes: blob.size, durationMs },
         });
-        setRecordings(rs => [saved, ...rs.filter(r => r.slideId !== active.id)]);
+
+        if (recScope === 'slide') {
+          setRecordings(rs => [parent, ...rs.filter(r => r.slideId !== startingSlide?.id)]);
+        } else {
+          // Ship the per-slide split to the backend so one child row is
+          // created for each segment captured during the take.
+          const splits = deckSplitsRef.current.filter(s => s.endMs > s.startMs);
+          const { children } = await api<{ children: Recording[] }>(`/recordings/${up.id}/split`, {
+            method: 'POST',
+            json: { splits },
+          });
+          // Drop the parent and any previous per-slide rows for the covered
+          // slides; replace with the children so the clip list reflects reality.
+          const coveredSlideIds = new Set(splits.map(s => s.slideId));
+          setRecordings(rs => [
+            ...children,
+            ...rs.filter(r => !coveredSlideIds.has(r.slideId || '') && r.id !== parent.id),
+          ]);
+          deckSplitsRef.current = [];
+          currentSegmentSlideIdRef.current = null;
+        }
       } catch (e: any) {
         setError(`Upload failed: ${e?.message ?? 'unknown'}`);
       }
     };
+
     startedAtRef.current = Date.now();
+
+    // Deck mode: mark the first slide as the current segment and jump to it.
+    if (recScope === 'deck' && startingSlide) {
+      deckSplitsRef.current = [];
+      currentSegmentStartRef.current = 0;
+      currentSegmentSlideIdRef.current = startingSlide.id;
+      setLiveSlideIdx(startingSlide.idx);
+      onSelectSlide(startingSlide.id);
+    }
+
     rec.start();
     setIsRecording(true);
     timerRef.current = setInterval(() => setElapsed(Date.now() - startedAtRef.current), 200);
@@ -346,7 +444,11 @@ export function NarrationPanel({
               animation: isRecording ? 'pulse 1.2s infinite' : undefined,
             }}
           />
-          {isRecording ? 'Stop recording' : 'Start recording'}
+          {isRecording
+            ? (scope === 'deck'
+                ? `Stop · slide ${String(liveSlideIdx || 0).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`
+                : 'Stop recording')
+            : (scope === 'deck' ? 'Record whole deck' : 'Record this slide')}
         </button>
         <div
           style={{
@@ -358,7 +460,47 @@ export function NarrationPanel({
             marginBottom: 18,
           }}
         >
-          records the current slide · streams to backend
+          {scope === 'deck'
+            ? (isRecording
+                ? 'advance slides with ← → or the slide list — we auto-split on stop'
+                : 'walk through the full deck · we auto-split clips per slide')
+            : 'records just the current slide · streams to backend'}
+        </div>
+
+        {/* Scope toggle — per slide vs. whole deck */}
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.15em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 10 }}>
+          take
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 22 }}>
+          {[
+            { id: 'slide' as const, label: 'This slide', hint: 'one clip per click' },
+            { id: 'deck' as const,  label: 'Whole deck', hint: 'auto-split as you advance' },
+          ].map(s => {
+            const selected = s.id === scope;
+            return (
+              <button
+                key={s.id}
+                onClick={() => !isRecording && setScope(s.id)}
+                disabled={isRecording}
+                style={{
+                  padding: 10,
+                  border: '1px solid ' + (selected ? 'var(--accent)' : 'var(--line)'),
+                  background: selected ? 'rgba(244,185,66,.05)' : 'var(--panel)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 4,
+                  cursor: isRecording ? 'not-allowed' : 'pointer',
+                  transition: 'all .2s',
+                  textAlign: 'left',
+                  color: selected ? 'var(--ink)' : 'var(--ink-2)',
+                }}
+              >
+                <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500 }}>{s.label}</span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.08em', color: 'var(--ink-3)' }}>{s.hint}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Mode selector */}

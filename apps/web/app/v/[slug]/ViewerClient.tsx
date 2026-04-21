@@ -265,18 +265,42 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
     };
   }, [data.teller.id, data.share.id, sessionId, email]);
 
-  // Load narration blob when slide changes
+  // Load narration blob when slide changes. For whole-deck children, the
+  // stream endpoint returns the parent's URL + the child's startOffsetMs /
+  // endOffsetMs — we seek in on load and pause when we reach endOffsetMs.
   useEffect(() => {
     const v = narratorVideoRef.current;
     if (!v || !rec) return;
+    let stopAtMs: number | null = null;
+    let timeUpdate: ((this: HTMLVideoElement) => void) | null = null;
+    let loaded: (() => void) | null = null;
     (async () => {
       try {
-        const r = await api<{ url: string }>(`/recordings/${rec.id}/stream`);
+        const r = await api<{ url: string; startOffsetMs?: number; endOffsetMs?: number | null }>(`/recordings/${rec.id}/stream`);
+        const start = (r.startOffsetMs || 0) / 1000;
+        stopAtMs = r.endOffsetMs ?? null;
         v.src = r.url;
+        loaded = () => { try { v.currentTime = start; } catch {} };
+        v.addEventListener('loadedmetadata', loaded);
+        if (stopAtMs != null) {
+          timeUpdate = function () {
+            if (stopAtMs != null && this.currentTime * 1000 >= stopAtMs) {
+              try { this.pause(); } catch {}
+            }
+          };
+          v.addEventListener('timeupdate', timeUpdate);
+        }
         if (playing) v.play().catch(() => {});
       } catch { /* ignore */ }
     })();
-    return () => { try { v.pause(); v.src = ''; } catch {} };
+    return () => {
+      try {
+        if (loaded) v.removeEventListener('loadedmetadata', loaded);
+        if (timeUpdate) v.removeEventListener('timeupdate', timeUpdate);
+        v.pause();
+        v.src = '';
+      } catch {}
+    };
   }, [rec, playing]);
 
   // Progress timer

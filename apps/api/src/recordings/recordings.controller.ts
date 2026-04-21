@@ -73,4 +73,13 @@ export class RecordingsController {
   remove(@Param('id') id: string) {
     return this.svc.remove(id);
   }
+
+  @Post('recordings/:id/split')
+  @UseGuards(JwtGuard)
+  split(
+    @Param('id') id: string,
+    @Body() body: { splits: Array<{ slideId: string; startMs: number; endMs: number }> },
+  ) {
+    return this.svc.split(id, body.splits || []);
+  }
 }
