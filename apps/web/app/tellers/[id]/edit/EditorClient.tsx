@@ -1,6 +1,23 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/lib/api';
 import { NarrationPanel } from './NarrationPanel';
 import { KbPanel } from './KbPanel';
@@ -35,7 +52,8 @@ type HistoryEntry =
       patch: Partial<Slide> & { layout?: any };
       inverse: Partial<Slide> & { layout?: any };
     }
-  | { kind: 'duplicate'; newSlideId: string };
+  | { kind: 'duplicate'; newSlideId: string }
+  | { kind: 'reorder'; prevOrder: string[] };
 
 const HISTORY_LIMIT = 80;
 const COALESCE_MS = 600;
@@ -89,6 +107,21 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const undoStackRef = useRef<HistoryEntry[]>([]);
   const redoStackRef = useRef<HistoryEntry[]>([]);
   const lastPushRef = useRef<{ slideId: string; keys: string; at: number } | null>(null);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active: dragged, over } = event;
+    if (!over || dragged.id === over.id) return;
+    const ids = teller.slides.map(s => s.id);
+    const from = ids.indexOf(String(dragged.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    reorderSlides(arrayMove(ids, from, to));
+  }
 
   const active = teller.slides.find(s => s.id === activeId);
   const activeLayoutId = active?.layoutId || 'headline';
@@ -173,8 +206,22 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
         if (activeId === entry.newSlideId) setActiveId(next[0]?.id);
         return { ...t, slides: next };
       });
+    } else if (entry.kind === 'reorder') {
+      await applyReorderSwap(entry);
     }
     flashToast('Undo');
+  }
+
+  async function applyReorderSwap(entry: { kind: 'reorder'; prevOrder: string[] }) {
+    const currentOrder = teller.slides.map(s => s.id);
+    const targetOrder = entry.prevOrder;
+    entry.prevOrder = currentOrder; // swap so the next call flips back
+    setTeller(t => {
+      const byId = new Map(t.slides.map(s => [s.id, s]));
+      const next = targetOrder.map((id, i) => ({ ...(byId.get(id) as Slide), idx: i + 1 }));
+      return { ...t, slides: next };
+    });
+    await api(`/tellers/${teller.id}/slides/reorder`, { method: 'POST', json: { ids: targetOrder } }).catch(() => {});
   }
 
   async function redo() {
@@ -191,6 +238,8 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
       undoStackRef.current.pop();
       flashToast('Cannot redo duplicate — please run again');
       return;
+    } else if (entry.kind === 'reorder') {
+      await applyReorderSwap(entry);
     }
     flashToast('Redo');
   }
@@ -202,6 +251,33 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     setActiveId(created.id);
     await api(`/slides/${created.id}`, { method: 'PATCH', json: { layoutId, background: created.background } });
     flashToast(`${LAYOUTS[layoutId]?.label || 'Slide'} added`);
+  }
+
+  async function reorderSlides(newOrder: string[]) {
+    const prevOrder = teller.slides.map(s => s.id);
+    if (prevOrder.join('|') === newOrder.join('|')) return;
+    // Optimistic reindex.
+    setTeller(t => {
+      const byId = new Map(t.slides.map(s => [s.id, s]));
+      const next = newOrder.map((id, i) => ({ ...(byId.get(id) as Slide), idx: i + 1 }));
+      return { ...t, slides: next };
+    });
+    undoStackRef.current.push({ kind: 'reorder', prevOrder });
+    if (undoStackRef.current.length > HISTORY_LIMIT) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    lastPushRef.current = null;
+    try {
+      await api(`/tellers/${teller.id}/slides/reorder`, { method: 'POST', json: { ids: newOrder } });
+      flashToast('Reordered');
+    } catch {
+      // Roll back on failure.
+      setTeller(t => {
+        const byId = new Map(t.slides.map(s => [s.id, s]));
+        const next = prevOrder.map((id, i) => ({ ...(byId.get(id) as Slide), idx: i + 1 }));
+        return { ...t, slides: next };
+      });
+      flashToast('Reorder failed');
+    }
   }
 
   async function duplicateSlide(id: string) {
@@ -298,32 +374,22 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
             <h3>Slides · {teller.slides.length}</h3>
             <button onClick={() => addSlide()} title="Add slide">+</button>
           </div>
-          <div>
-            {teller.slides.map(s => {
-              const hasRec = teller.recordings.some((r: any) => r.slideId === s.id);
-              return (
-                <div key={s.id} className={`slide-thumb${s.id === activeId ? ' active' : ''}`} onClick={() => setActiveId(s.id)} role="button">
-                  <div className="st-num">{String(s.idx).padStart(2, '0')}</div>
-                  <div className="st-card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <div style={{ transform: 'scale(0.12)', transformOrigin: 'top left', width: '833%', height: '833%' }}>
-                      <RenderSlide slide={thumbSlide(s)} />
-                    </div>
-                    {hasRec && <span className="st-rec-badge" />}
-                  </div>
-                  <button
-                    className="slide-thumb-dup"
-                    title="Duplicate slide (⌘D)"
-                    onClick={e => { e.stopPropagation(); duplicateSlide(s.id); }}
-                  >
-                    <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.2}>
-                      <rect x={1} y={1} width={6} height={6} />
-                      <rect x={3} y={3} width={6} height={6} />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={teller.slides.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              <div>
+                {teller.slides.map(s => (
+                  <SortableSlideThumb
+                    key={s.id}
+                    slide={thumbSlide(s)}
+                    isActive={s.id === activeId}
+                    hasRec={teller.recordings.some((r: any) => r.slideId === s.id)}
+                    onSelect={() => setActiveId(s.id)}
+                    onDuplicate={() => duplicateSlide(s.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </aside>
 
         <main className="canvas-area">
@@ -456,6 +522,56 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
       <div className={`toast${toast ? ' show' : ''}`}>{toast}</div>
     </>
+  );
+}
+
+function SortableSlideThumb({
+  slide,
+  isActive,
+  hasRec,
+  onSelect,
+  onDuplicate,
+}: {
+  slide: Slide;
+  isActive: boolean;
+  hasRec: boolean;
+  onSelect: () => void;
+  onDuplicate: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: slide.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`slide-thumb${isActive ? ' active' : ''}${isDragging ? ' dragging' : ''}`}
+      onClick={onSelect}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="st-num">{String(slide.idx).padStart(2, '0')}</div>
+      <div className="st-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ transform: 'scale(0.12)', transformOrigin: 'top left', width: '833%', height: '833%' }}>
+          <RenderSlide slide={slide} />
+        </div>
+        {hasRec && <span className="st-rec-badge" />}
+      </div>
+      <button
+        className="slide-thumb-dup"
+        title="Duplicate slide (⌘D)"
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); onDuplicate(); }}
+      >
+        <svg width={10} height={10} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.2}>
+          <rect x={1} y={1} width={6} height={6} />
+          <rect x={3} y={3} width={6} height={6} />
+        </svg>
+      </button>
+    </div>
   );
 }
 
