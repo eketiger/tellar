@@ -18,6 +18,20 @@
 'use client';
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { sanitizeSlideHtml } from './sanitize';
 
 export type SlotKind = 'text' | 'text[]' | 'image';
@@ -581,6 +595,160 @@ const VideoEmbedLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; 
   );
 };
 
+type ChartKind = 'bar' | 'line' | 'pie' | 'kpi';
+interface ChartDatum { label: string; value: number }
+
+const DEFAULT_CHART_DATA: ChartDatum[] = [
+  { label: 'Q1', value: 120 },
+  { label: 'Q2', value: 180 },
+  { label: 'Q3', value: 260 },
+  { label: 'Q4', value: 340 },
+];
+
+const ChartLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
+  const { theme, wrapperStyle } = themeFor(bg);
+  const kind: ChartKind = (slots.chartKind === 'line' || slots.chartKind === 'pie' || slots.chartKind === 'kpi' ? slots.chartKind : 'bar');
+  const rawData: any[] = Array.isArray(slots.data) && slots.data.length > 0 ? slots.data : DEFAULT_CHART_DATA;
+  const data: ChartDatum[] = rawData.map(d => ({
+    label: String(d?.label ?? ''),
+    value: Number.isFinite(Number(d?.value)) ? Number(d.value) : 0,
+  }));
+  const palette = [theme.accent, '#7fa8d4', '#9f8fd3', '#8cc88c', '#d47a7a', '#d4a76a'];
+
+  return (
+    <div style={{ ...wrapperStyle, width: '100%', height: '100%', padding: '50px 60px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 20 }}>
+        <TextSlot name="title" value={slots.title} theme={theme} edit={edit} placeholder="Chart title" style={titleStyle(theme, 38)} />
+        {edit && <ChartKindSwitch current={kind} onPick={(k) => edit.onSlotChange('chartKind', k)} theme={theme} />}
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {kind === 'bar' && (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 6, right: 8, bottom: 6, left: -10 }}>
+              <CartesianGrid strokeDasharray="2 4" stroke={theme.eyebrow + '55'} />
+              <XAxis dataKey="label" stroke={theme.sub} tick={{ fill: theme.sub, fontFamily: 'var(--mono)', fontSize: 11 }} axisLine={{ stroke: theme.eyebrow + '99' }} tickLine={false} />
+              <YAxis stroke={theme.sub} tick={{ fill: theme.sub, fontFamily: 'var(--mono)', fontSize: 11 }} axisLine={{ stroke: theme.eyebrow + '99' }} tickLine={false} />
+              <Tooltip contentStyle={{ background: theme.bg, border: '1px solid ' + theme.eyebrow + '55', color: theme.ink, fontFamily: 'var(--mono)', fontSize: 11 }} cursor={{ fill: theme.accent + '15' }} />
+              <Bar dataKey="value" fill={theme.accent} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+        {kind === 'line' && (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 6, right: 8, bottom: 6, left: -10 }}>
+              <CartesianGrid strokeDasharray="2 4" stroke={theme.eyebrow + '55'} />
+              <XAxis dataKey="label" stroke={theme.sub} tick={{ fill: theme.sub, fontFamily: 'var(--mono)', fontSize: 11 }} axisLine={{ stroke: theme.eyebrow + '99' }} tickLine={false} />
+              <YAxis stroke={theme.sub} tick={{ fill: theme.sub, fontFamily: 'var(--mono)', fontSize: 11 }} axisLine={{ stroke: theme.eyebrow + '99' }} tickLine={false} />
+              <Tooltip contentStyle={{ background: theme.bg, border: '1px solid ' + theme.eyebrow + '55', color: theme.ink, fontFamily: 'var(--mono)', fontSize: 11 }} />
+              <Line type="monotone" dataKey="value" stroke={theme.accent} strokeWidth={2} dot={{ r: 3, fill: theme.accent }} />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+        {kind === 'pie' && (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius="70%" label={{ fill: theme.ink, fontFamily: 'var(--mono)', fontSize: 11 }}>
+                {data.map((_, i) => <Cell key={i} fill={palette[i % palette.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: theme.bg, border: '1px solid ' + theme.eyebrow + '55', color: theme.ink, fontFamily: 'var(--mono)', fontSize: 11 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+        {kind === 'kpi' && (
+          <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: `repeat(${Math.min(data.length, 4)}, 1fr)`, gap: 16 }}>
+            {data.slice(0, 4).map((d, i) => (
+              <div key={i} style={{ border: `1px solid ${theme.eyebrow}33`, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.2em', color: theme.eyebrow, textTransform: 'uppercase' }}>{d.label}</div>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(32px, 4vw, 56px)', fontWeight: 400, color: theme.accent, lineHeight: 1, letterSpacing: '-.025em' }}>
+                  {d.value.toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <TextSlot name="caption" value={slots.caption} theme={theme} edit={edit} placeholder="Short caption" style={{ fontFamily: 'var(--mono)', fontSize: 11, color: theme.eyebrow, letterSpacing: '.1em', textTransform: 'uppercase' }} />
+
+      {edit && <ChartDataEditor data={data} theme={theme} onChange={(next) => edit.onSlotChange('data', next)} />}
+    </div>
+  );
+};
+
+function ChartKindSwitch({ current, onPick, theme }: { current: ChartKind; onPick: (k: ChartKind) => void; theme: Theme }) {
+  const kinds: ChartKind[] = ['bar', 'line', 'pie', 'kpi'];
+  return (
+    <div style={{ display: 'flex', gap: 4, background: theme.bg, border: `1px solid ${theme.eyebrow}55`, padding: 2 }}>
+      {kinds.map(k => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => onPick(k)}
+          style={{
+            fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase',
+            padding: '4px 8px', cursor: 'pointer', border: 'none',
+            background: current === k ? theme.accent : 'transparent',
+            color: current === k ? theme.bg : theme.sub,
+          }}
+        >
+          {k}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChartDataEditor({ data, theme, onChange }: { data: ChartDatum[]; theme: Theme; onChange: (next: ChartDatum[]) => void }) {
+  const update = (i: number, patch: Partial<ChartDatum>) => onChange(data.map((d, j) => j === i ? { ...d, ...patch } : d));
+  const remove = (i: number) => onChange(data.filter((_, j) => j !== i));
+  const add = () => onChange([...data, { label: `Item ${data.length + 1}`, value: 0 }]);
+  const inputStyle: CSSProperties = {
+    background: 'transparent',
+    border: `1px solid ${theme.eyebrow}44`,
+    color: theme.ink,
+    fontFamily: 'var(--mono)',
+    fontSize: 11,
+    padding: '3px 6px',
+    outline: 'none',
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 90, overflow: 'auto', borderTop: `1px solid ${theme.eyebrow}33`, paddingTop: 8 }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input
+            value={d.label}
+            onChange={e => update(i, { label: e.target.value })}
+            style={{ ...inputStyle, flex: 1 }}
+            placeholder="Label"
+          />
+          <input
+            type="number"
+            value={d.value}
+            onChange={e => update(i, { value: Number(e.target.value) || 0 })}
+            style={{ ...inputStyle, width: 90 }}
+            placeholder="0"
+          />
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            style={{ background: 'transparent', border: 'none', color: theme.sub, cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 11, padding: '0 4px' }}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        style={{ alignSelf: 'flex-start', background: 'transparent', border: `1px dashed ${theme.accent}77`, color: theme.accent, fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', padding: '3px 10px', cursor: 'pointer', marginTop: 4 }}
+      >
+        + add row
+      </button>
+    </div>
+  );
+}
+
 const ThanksLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; edit?: EditCtx }) => {
   const { theme, wrapperStyle } = themeFor(bg);
   return (
@@ -636,6 +804,7 @@ export const LAYOUTS: Record<string, LayoutMeta & { render: LayoutRender }> = {
   grid:       { id: 'grid',       label: 'Grid',       hint: '2×3 card grid — perfect for team or logos', slots: { title: 'text', items: 'text[]' }, defaultBg: 'cream', render: GridLayout },
   comparison: { id: 'comparison', label: 'Comparison', hint: 'Two columns: before vs. after',             slots: { headline: 'text', leftTitle: 'text', rightTitle: 'text', left: 'text[]', right: 'text[]' }, defaultBg: 'cream', render: ComparisonLayout },
   videoEmbed: { id: 'videoEmbed', label: 'Video',      hint: 'YouTube or Loom embed with caption',        slots: { eyebrow: 'text', title: 'text', url: 'text', caption: 'text' }, defaultBg: 'cream', render: VideoEmbedLayout },
+  chart:      { id: 'chart',      label: 'Chart',      hint: 'Bar, line, pie or KPI from inline data',    slots: { title: 'text', chartKind: 'text', data: 'text[]', caption: 'text' }, defaultBg: 'cream', render: ChartLayout },
   thanks:     { id: 'thanks',     label: 'Thanks',     hint: 'Closing slide',                             slots: { title: 'text' }, defaultBg: 'cream', render: ThanksLayout },
 };
 

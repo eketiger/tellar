@@ -207,6 +207,15 @@ function Wireframe({ id }: { id: string }) {
         <polygon points="44,26 44,38 54,32" fill="#f6f3ed" />
         {bar(10, 50, 40, 2, S.dim)}
       </>);
+    case 'chart':
+      return wrap(<>
+        {bar(10, 8, 44, 4, S.accent)}
+        {bar(12, 44, 10, 8, S.accent)}
+        {bar(26, 36, 10, 16, S.bar)}
+        {bar(40, 26, 10, 26, S.accent)}
+        {bar(54, 18, 10, 34, S.bar)}
+        {bar(68, 12, 10, 40, S.accent)}
+      </>);
     case 'thanks':
       return wrap(<>
         {bar(18, 20, 60, 18, S.accent)}
