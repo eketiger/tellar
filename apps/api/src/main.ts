@@ -17,6 +17,7 @@ async function bootstrap() {
   //   POST /api/billing/webhook      — Stripe needs the raw buffer for signature verification
   app.use((req: any, res: any, next: any) => {
     if (req.method === 'PUT' && /\/api\/recordings\/[^/]+\/blob$/.test(req.url)) return next();
+    if (req.method === 'PUT' && /\/api\/slide-images\/[^/]+\/blob$/.test(req.url)) return next();
     if (req.method === 'POST' && req.url === '/api/billing/webhook') {
       const chunks: Buffer[] = [];
       req.on('data', (c: Buffer) => chunks.push(c));

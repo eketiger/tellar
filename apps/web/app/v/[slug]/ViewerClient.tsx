@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { citeToHtml } from '@/lib/cite';
 import { sanitizeSlideHtml } from '@/lib/sanitize';
+import { RenderSlide } from '@/lib/slide-layouts';
 import './viewer.css';
 
 interface Slide { id: string; idx: number; eyebrow: string | null; title: string; subtitle: string | null; }
@@ -213,26 +214,16 @@ function Viewer({ data, email }: { data: ShareData; email: string }) {
 
       <div className={layoutCls}>
         <main className="viewer-stage">
-          <div className={`slide-stage fade-in d1${swap ? ' swap' : ''}`}>
+          <div className={`slide-stage fade-in d1${swap ? ' swap' : ''}`} style={{ position: 'relative' }}>
             {watermarkText && <div className="slide-watermark">{watermarkText}</div>}
-            <div className="slide-content">
-              <div className="ss-eyebrow">{slide?.eyebrow}</div>
-              <div>
-                <div className="ss-title" dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(slide?.title) }} />
-                {slide?.subtitle && <div className="ss-sub" dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(slide.subtitle) }} />}
+            {slide && <RenderSlide slide={slide} />}
+            {showNarrator && (
+              <div className={`narrator${playing && rec ? ' playing' : ''}`} onClick={togglePlay} title="Click to play narration">
+                <video ref={narratorVideoRef} playsInline muted={muted} style={{ display: hasVideoNarration ? 'block' : 'none' }} />
+                {!hasVideoNarration && <div className="narrator-fallback">{(data.teller.title || 'T').charAt(0).toUpperCase()}</div>}
+                <div className="narrator-ring" />
               </div>
-              <div className="ss-foot">
-                <span>tellar</span>
-                <span>{String(idx).padStart(2, '0')} / {slides.length}</span>
-              </div>
-              {showNarrator && (
-                <div className={`narrator${playing && rec ? ' playing' : ''}`} onClick={togglePlay} title="Click to play narration">
-                  <video ref={narratorVideoRef} playsInline muted={muted} style={{ display: hasVideoNarration ? 'block' : 'none' }} />
-                  {!hasVideoNarration && <div className="narrator-fallback">{(data.teller.title || 'T').charAt(0).toUpperCase()}</div>}
-                  <div className="narrator-ring" />
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           <div className="player-bar fade-in d2">

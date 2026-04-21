@@ -12,6 +12,7 @@ const nextConfig = {
       { source: '/api/slides/:path*', destination: `${api}/api/slides/:path*` },
       { source: '/api/shares/:path*', destination: `${api}/api/shares/:path*` },
       { source: '/api/recordings/:path*', destination: `${api}/api/recordings/:path*` },
+      { source: '/api/slide-images/:path*', destination: `${api}/api/slide-images/:path*` },
       { source: '/api/kb/:path*', destination: `${api}/api/kb/:path*` },
       { source: '/api/events', destination: `${api}/api/events` },
       { source: '/api/agent/:path*', destination: `${api}/api/agent/:path*` },

@@ -9,7 +9,7 @@ export class SlidesService {
     const s = await this.prisma.slide.findUnique({ where: { id } });
     if (!s) throw new NotFoundException();
     const data: any = {};
-    for (const k of ['eyebrow', 'title', 'subtitle', 'notes', 'layout', 'idx'] as const) {
+    for (const k of ['eyebrow', 'title', 'subtitle', 'notes', 'layout', 'layoutId', 'background', 'idx'] as const) {
       if (patch[k] !== undefined) data[k] = patch[k];
     }
     const updated = await this.prisma.slide.update({ where: { id }, data });

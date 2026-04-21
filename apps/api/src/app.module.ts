@@ -15,6 +15,7 @@ import { ViewerModule } from './viewer/viewer.module';
 import { AdminModule } from './admin/admin.module';
 import { GdprModule } from './gdpr/gdpr.module';
 import { SuperAdminModule } from './superadmin/superadmin.module';
+import { SlideImagesModule } from './slide-images/slide-images.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SuperAdminModule } from './superadmin/superadmin.module';
     AdminModule,
     GdprModule,
     SuperAdminModule,
+    SlideImagesModule,
   ],
 })
 export class AppModule {}

@@ -42,6 +42,8 @@ export const UpdateSlideDto = z.object({
   title: z.string().optional(),
   subtitle: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  layoutId: z.string().optional(),
+  background: z.record(z.any()).nullable().optional(),
   layout: z.record(z.any()).optional(),
   idx: z.number().int().optional(),
 });

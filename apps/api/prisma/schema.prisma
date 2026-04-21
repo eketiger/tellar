@@ -140,17 +140,31 @@ model Teller {
 }
 
 model Slide {
-  id       String  @id @default(cuid())
-  tellerId String
-  teller   Teller  @relation(fields: [tellerId], references: [id])
-  idx      Int
-  eyebrow  String?
-  title    String  @db.Text
-  subtitle String? @db.Text
-  notes    String? @db.Text
-  layout   Json    @default("{}")
+  id         String  @id @default(cuid())
+  tellerId   String
+  teller     Teller  @relation(fields: [tellerId], references: [id])
+  idx        Int
+  layoutId   String  @default("headline")
+  background Json    @default("{}")
+  eyebrow    String?
+  title      String  @db.Text
+  subtitle   String? @db.Text
+  notes      String? @db.Text
+  layout     Json    @default("{}")
 
   @@unique([tellerId, idx])
+}
+
+model SlideImage {
+  id        String   @id @default(cuid())
+  tellerId  String
+  name      String
+  s3Key     String
+  bytes     Int?
+  mime      String?
+  createdAt DateTime @default(now())
+
+  @@index([tellerId])
 }
 
 model Share {
