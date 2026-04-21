@@ -24,6 +24,7 @@ import { KbPanel } from './KbPanel';
 import { CopilotPanel } from './CopilotPanel';
 import { LayoutPicker } from './LayoutPicker';
 import { PresentMode } from './PresentMode';
+import { MarkdownImport, type ParsedSlide } from './MarkdownImport';
 import { LAYOUTS, RenderSlide, type BackgroundKind } from '@/lib/slide-layouts';
 import './editor.css';
 
@@ -103,6 +104,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [showPicker, setShowPicker] = useState(false);
   const [imagePickerSlot, setImagePickerSlot] = useState<string | null>(null);
   const [presenting, setPresenting] = useState(false);
+  const [importingMd, setImportingMd] = useState(false);
   const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Undo/redo stacks of inverse patches. Coalesce same-slide+same-keys bursts
@@ -333,6 +335,30 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     flashToast(`${LAYOUTS[layoutId]?.label || 'Slide'} added`);
   }
 
+  async function importMarkdownSlides(parsed: ParsedSlide[]) {
+    if (!parsed.length) return;
+    const created: Slide[] = [];
+    for (const spec of parsed) {
+      const s = await api<Slide>(`/tellers/${teller.id}/slides`, { method: 'POST' });
+      const layoutMeta = LAYOUTS[spec.layoutId] || LAYOUTS.headline;
+      const bg = { kind: layoutMeta.defaultBg };
+      const patch = {
+        layoutId: spec.layoutId,
+        layout: spec.slots,
+        title: spec.slots.title || '',
+        subtitle: spec.slots.subtitle ?? null,
+        eyebrow: spec.slots.eyebrow ?? null,
+        background: bg,
+      };
+      await api(`/slides/${s.id}`, { method: 'PATCH', json: patch });
+      created.push({ ...s, ...patch });
+    }
+    setTeller(t => ({ ...t, slides: [...t.slides, ...created] }));
+    if (created[0]) setActiveId(created[0].id);
+    setImportingMd(false);
+    flashToast(`${parsed.length} slide${parsed.length === 1 ? '' : 's'} imported`);
+  }
+
   async function reorderSlides(newOrder: string[]) {
     const prevOrder = teller.slides.map(s => s.id);
     if (prevOrder.join('|') === newOrder.join('|')) return;
@@ -481,7 +507,10 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
         <aside className="slide-list">
           <div className="sl-head">
             <h3>Slides · {teller.slides.length}</h3>
-            <button onClick={() => addSlide()} title="Add slide">+</button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setImportingMd(true)} title="Import from markdown" style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.1em', padding: '0 6px', width: 'auto', borderRadius: 2 }}>md</button>
+              <button onClick={() => addSlide()} title="Add slide">+</button>
+            </div>
           </div>
           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={teller.slides.map(s => s.id)} strategy={verticalListSortingStrategy}>
@@ -651,6 +680,10 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           startIndex={Math.max(0, teller.slides.findIndex(s => s.id === activeId))}
           onClose={() => setPresenting(false)}
         />
+      )}
+
+      {importingMd && (
+        <MarkdownImport onImport={importMarkdownSlides} onClose={() => setImportingMd(false)} />
       )}
 
       <div className={`toast${toast ? ' show' : ''}`}>{toast}</div>
