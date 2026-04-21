@@ -102,3 +102,17 @@
   .viewer-chat { width: 100%; }
   .vt-title { display: none; }
 }
+
+/* Viewer header action buttons (share + download) */
+.vt-action { background: transparent; border: 1px solid var(--line-2); color: var(--ink-2); font-family: var(--mono); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; padding: 5px 10px; cursor: pointer; transition: all .15s; border-radius: 2px; margin-right: 10px; }
+.vt-action:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Print: each slide → one page, strip all chrome. */
+@media print {
+  @page { size: 16in 10in; margin: 0; }
+  .viewer-top, .viewer-chat, .narration-bar, .chat-fab, .nav-dock, .vt-action { display: none !important; }
+  .viewer-layout { display: block; }
+  .viewer-stage { padding: 0; background: #fff; }
+  .slide-canvas, .slide-content, .ss { width: 100% !important; height: 100vh !important; page-break-after: always; box-shadow: none !important; }
+  body, html { background: #fff !important; }
+}

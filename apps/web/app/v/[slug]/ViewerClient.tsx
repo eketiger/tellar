@@ -67,6 +67,53 @@ export function ViewerClient({ slug }: { slug: string }) {
   return <Viewer data={data!} email={email} sessionId={sessionId} />;
 }
 
+function NdaGate({ tellerTitle, onAccept }: { tellerTitle: string; onAccept: () => void }) {
+  const [agreed, setAgreed] = useState(false);
+  return (
+    <div className="gate-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(12,13,15,.96)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 20 }}>
+      <div style={{ maxWidth: 520, width: '100%', background: 'var(--panel)', border: '1px solid var(--line-2)', padding: 32 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.25em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
+          confidentiality
+        </div>
+        <h2 style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 500, marginBottom: 10 }}>
+          Non-disclosure <em style={{ color: 'var(--accent)' }}>agreement</em>
+        </h2>
+        <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.6, marginBottom: 20 }}>
+          The contents of <b dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(tellerTitle) }} /> are confidential.
+          By continuing, you agree not to share, reproduce, or reshare any part of this deck without written consent.
+        </p>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginBottom: 20, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={e => setAgreed(e.target.checked)}
+            style={{ marginTop: 3 }}
+          />
+          <span>I have read and agree to the terms above.</span>
+        </label>
+        <button
+          disabled={!agreed}
+          onClick={onAccept}
+          style={{
+            width: '100%',
+            padding: 12,
+            background: agreed ? 'var(--accent)' : 'var(--panel-2)',
+            color: agreed ? '#0c0d0f' : 'var(--ink-3)',
+            border: '1px solid ' + (agreed ? 'var(--accent)' : 'var(--line-2)'),
+            fontFamily: 'var(--mono)',
+            fontSize: 11,
+            letterSpacing: '.2em',
+            textTransform: 'uppercase',
+            cursor: agreed ? 'pointer' : 'not-allowed',
+          }}
+        >
+          Accept &amp; continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function GateOverlay({ email, setEmail, passphrase, setPassphrase, reason, err, onSubmit }: any) {
   const passMode = reason === 'passphrase-required' || reason === 'bad-passphrase';
   const expired = reason === 'expired';
@@ -111,6 +158,19 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
   const agentOn = perms.agent !== false;
   const showNarrator = perms.recording !== false;
   const showWatermark = perms.watermark !== false;
+  const canDownload = perms.download === true;
+  const canReshare = perms.reshare === true;
+  const ndaRequired = perms.nda === true;
+
+  // NDA is gated via a one-shot accept stored in sessionStorage per share slug.
+  const ndaStorageKey = `tellar:nda:${data.share.slug}`;
+  const [ndaAccepted, setNdaAccepted] = useState<boolean>(() => {
+    if (!ndaRequired) return true;
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem(ndaStorageKey) === 'yes';
+  });
+
+  const [shareCopied, setShareCopied] = useState(false);
   const [idx, setIdx] = useState(1);
   const [viewed, setViewed] = useState<Set<number>>(new Set([1]));
   const [chatOpen, setChatOpen] = useState(true);
@@ -227,6 +287,35 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
   const hasVideoNarration = rec && (rec.mode === 'cam-mic' || rec.mode === 'screen' || rec.mode === 'screen-mic');
   const watermarkText = showWatermark && email ? Array(6).fill(email).join(' · ') : '';
 
+  function downloadDeck() {
+    navigator.sendBeacon?.('/api/events', new Blob(
+      [JSON.stringify({ type: 'DOWNLOAD', tellerId: data.teller.id, shareId: data.share.id, sessionId, email })],
+      { type: 'application/json' },
+    ));
+    // Browser-native PDF via print. Print styles below make each slide one page.
+    window.print();
+  }
+
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Fallback: select the URL into a prompt.
+      window.prompt('Copy this link', window.location.href);
+    }
+  }
+
+  function acceptNda() {
+    sessionStorage.setItem(ndaStorageKey, 'yes');
+    setNdaAccepted(true);
+  }
+
+  if (ndaRequired && !ndaAccepted) {
+    return <NdaGate tellerTitle={data.teller.title} onAccept={acceptNda} />;
+  }
+
   return (
     <div className="viewer-root">
       <header className="viewer-top">
@@ -235,6 +324,24 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
           <span className="vt-title"><b dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(data.teller.title) }} /> · shared deck</span>
         </div>
         <div className="vt-right">
+          {canReshare && (
+            <button
+              className="vt-action"
+              onClick={copyShareLink}
+              title="Copy link to share"
+            >
+              {shareCopied ? '✓ link copied' : 'share ↗'}
+            </button>
+          )}
+          {canDownload && (
+            <button
+              className="vt-action"
+              onClick={downloadDeck}
+              title="Download as PDF"
+            >
+              download ↓
+            </button>
+          )}
           <span className="vt-watermark">{email || 'guest'}</span>
           <span>{String(idx).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}</span>
         </div>
