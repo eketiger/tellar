@@ -11,10 +11,11 @@ export default async function SettingsPage() {
   if (!session) redirect('/login');
   const jar = await cookies();
   const ch = jar.getAll().map(c => `${c.name}=${c.value}`).join('; ');
-  const [members, usage, billing] = await Promise.all([
+  const [members, usage, billing, googleStatus] = await Promise.all([
     apiServer<any[]>(`/workspaces/${session.workspace.id}/members`, ch),
     apiServer<any>(`/workspaces/${session.workspace.id}/usage`, ch),
     apiServer<any>(`/workspaces/${session.workspace.id}/billing`, ch),
+    apiServer<any>(`/google/status`, ch).catch(() => ({ enabled: false, connected: false })),
   ]);
 
   return (
@@ -35,6 +36,7 @@ export default async function SettingsPage() {
         members={members || []}
         usage={usage}
         billing={billing}
+        googleStatus={googleStatus || { enabled: false, connected: false }}
       />
       <NavDock />
     </>

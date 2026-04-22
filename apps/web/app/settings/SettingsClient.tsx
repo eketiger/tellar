@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { UsageChart } from './UsageChart';
 import './settings.css';
@@ -24,7 +24,7 @@ const PLANS: Record<string, { price: number; desc: string; next?: string }> = {
   ENTERPRISE: { price: 0, desc: 'Custom — tailored to your org.' },
 };
 
-export function SettingsClient({ workspace, user, members, usage, billing }: any) {
+export function SettingsClient({ workspace, user, members, usage, billing, googleStatus }: any) {
   const [tab, setTab] = useState<TabId>('profile');
   const [memberList, setMembers] = useState<any[]>(members || []);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -404,21 +404,23 @@ export function SettingsClient({ workspace, user, members, usage, billing }: any
           )}
 
           {tab === 'integrations' && (
-            <section className="st-panel">
+            <section id="integrations" className="st-panel">
               <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />
               <div className="st-panel-head">
                 <div>
                   <h2>Connected <em>tools.</em></h2>
-                  <p>Tellar talks to the tools you already use. Slack for notifications. HubSpot and Salesforce for auto-logged touches. Segment for event piping.</p>
+                  <p>Connect the tools you live in. Google Slides imports your existing decks; the rest pipe your events and notifications out.</p>
                 </div>
               </div>
 
-              <div className="integ-grid">
+              <GoogleIntegrationCard initial={googleStatus} />
+
+              <div className="integ-grid" style={{ marginTop: 16 }}>
                 {[
-                  { icon: '#', color: '#4a154b', name: 'Slack', sub: 'posts to #deals-pipeline', connected: true },
-                  { icon: 'H', color: '#ff7a59', name: 'HubSpot', sub: 'auto-logs deck opens as activity', connected: true },
-                  { icon: 'SF', color: 'var(--ink-2)', name: 'Salesforce', sub: 'opportunity-level tellar attachment', connected: false },
-                  { icon: 'Sg', color: 'var(--ink-2)', name: 'Segment', sub: 'pipe every tellar event as a track call', connected: false },
+                  { icon: '#', color: '#4a154b', name: 'Slack', sub: 'post deck-opened + agent-query to a channel', status: 'soon' as const },
+                  { icon: 'H', color: '#ff7a59', name: 'HubSpot', sub: 'auto-log deck opens as contact activity', status: 'soon' as const },
+                  { icon: 'SF', color: 'var(--ink-2)', name: 'Salesforce', sub: 'opportunity-level tellar attachment', status: 'soon' as const },
+                  { icon: 'Sg', color: 'var(--ink-2)', name: 'Segment', sub: 'pipe every tellar event as a track call', status: 'soon' as const },
                 ].map((it, i) => (
                   <div key={i} className="integ-card">
                     <div className="integ-icon" style={{ color: it.color }}>{it.icon}</div>
@@ -426,7 +428,7 @@ export function SettingsClient({ workspace, user, members, usage, billing }: any
                       <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500 }}>{it.name}</div>
                       <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.1em', marginTop: 2 }}>{it.sub}</div>
                     </div>
-                    {it.connected ? <span className="status-chip active">connected</span> : <button className="btn btn-ghost btn-sm">Connect</button>}
+                    <span className="status-chip" style={{ opacity: .6 }}>coming soon</span>
                   </div>
                 ))}
               </div>
@@ -456,6 +458,97 @@ export function SettingsClient({ workspace, user, members, usage, billing }: any
         <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--panel)', border: '1px solid var(--line-2)', padding: '12px 20px', fontFamily: 'var(--serif)', fontSize: 13, color: 'var(--ink)', zIndex: 200, borderLeft: '2px solid var(--good)' }}>
           {toast}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Real Google connection card — reads status from the server prop on first
+ * render, then refetches after connect/disconnect. Connect is a full-page
+ * redirect (not a popup) so the callback can write the refresh token and
+ * bounce us back here with ?google=connected.
+ */
+function GoogleIntegrationCard({ initial }: { initial: { enabled: boolean; connected: boolean; connection?: { email?: string; name?: string } | null } }) {
+  const [state, setState] = useState(initial);
+  const [busy, setBusy] = useState<'disconnect' | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  // Surface the ?google=connected / ?google=error flag the callback set.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const flag = url.searchParams.get('google');
+    const err = url.searchParams.get('msg');
+    if (flag === 'connected') {
+      setMsg('Google connected.');
+      refresh();
+    } else if (flag === 'error') {
+      setMsg(`Google connect failed${err ? ` · ${err}` : ''}`);
+    }
+    if (flag) {
+      url.searchParams.delete('google');
+      url.searchParams.delete('msg');
+      window.history.replaceState({}, '', url.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function refresh() {
+    try {
+      const s = await fetch('/api/google/status', { credentials: 'include' }).then(r => r.json());
+      setState(s);
+    } catch { /* ignore */ }
+  }
+
+  async function disconnect() {
+    if (!confirm('Disconnect Google? Future imports will need to re-authorize.')) return;
+    setBusy('disconnect');
+    try {
+      await fetch('/api/google/disconnect', { method: 'DELETE', credentials: 'include' });
+      await refresh();
+      setMsg('Google disconnected.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!state.enabled) {
+    return (
+      <div className="integ-card" style={{ borderStyle: 'dashed', color: 'var(--ink-3)' }}>
+        <div className="integ-icon" style={{ color: '#4285f4' }}>G</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, color: 'var(--ink-2)' }}>Google Slides</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.1em', marginTop: 2 }}>
+            OAuth not configured · set GOOGLE_CLIENT_ID in the API env
+          </div>
+        </div>
+        <span className="status-chip" style={{ opacity: .5 }}>unavailable</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="integ-card">
+      <div className="integ-icon" style={{ color: '#4285f4' }}>G</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500 }}>Google Slides</div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.1em', marginTop: 2 }}>
+          {state.connected && state.connection?.email
+            ? <>connected as <b style={{ color: 'var(--ink-2)' }}>{state.connection.email}</b> · import presentations one-click</>
+            : <>import presentations from your Google Slides workspace with one click</>}
+        </div>
+        {msg && <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--good)', letterSpacing: '.08em', marginTop: 4 }}>{msg}</div>}
+      </div>
+      {state.connected ? (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span className="status-chip active">connected</span>
+          <button className="btn btn-ghost btn-sm" disabled={busy === 'disconnect'} onClick={disconnect}>
+            {busy === 'disconnect' ? '…' : 'Disconnect'}
+          </button>
+        </div>
+      ) : (
+        <a className="btn btn-primary btn-sm" href="/api/google/auth/start">Connect</a>
       )}
     </div>
   );
