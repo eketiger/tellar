@@ -11,7 +11,11 @@ interface GoogleTokens {
   refresh_token?: string;
   expires_in?: number;
   token_type?: string;
+  scope?: string;
 }
+
+const USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
+const OPENID_SCOPES = 'openid email profile';
 
 interface GSlide {
   objectId: string;
@@ -61,11 +65,110 @@ export class GoogleService {
     u.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID!);
     u.searchParams.set('redirect_uri', this.redirectUri());
     u.searchParams.set('response_type', 'code');
-    u.searchParams.set('scope', SCOPE);
-    u.searchParams.set('access_type', 'online');
+    // openid + email + profile gives us whose account it is without extra
+    // API calls; SCOPE is the actual read-only Slides permission.
+    u.searchParams.set('scope', `${OPENID_SCOPES} ${SCOPE}`);
+    // offline + prompt=consent guarantees Google returns a refresh_token
+    // every time (even if the user already consented) so we can store it.
+    u.searchParams.set('access_type', 'offline');
     u.searchParams.set('prompt', 'consent');
+    u.searchParams.set('include_granted_scopes', 'true');
     u.searchParams.set('state', state);
     return u.toString();
+  }
+
+  async refreshAccessToken(refreshToken: string): Promise<GoogleTokens> {
+    if (!this.isEnabled()) throw new BadRequestException('Google OAuth not configured');
+    const res = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        refresh_token: refreshToken,
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        grant_type: 'refresh_token',
+      }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new UnauthorizedException(`Google token refresh failed: ${t}`);
+    }
+    return (await res.json()) as GoogleTokens;
+  }
+
+  async fetchUserInfo(accessToken: string): Promise<{ email?: string; name?: string; sub?: string }> {
+    const res = await fetch(USERINFO_URL, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return {};
+    return (await res.json()) as { email?: string; name?: string; sub?: string };
+  }
+
+  /** Persist a fresh OAuth exchange under the given userId, upserting so a
+   *  re-consent rotates the refresh token cleanly. */
+  async saveConnection(userId: string, tokens: GoogleTokens, profile: { email?: string; name?: string }) {
+    if (!tokens.refresh_token) {
+      // Shouldn't happen because we ask for prompt=consent, but guard anyway
+      // so a malformed token exchange doesn't orphan a stale connection.
+      throw new BadRequestException('Google did not return a refresh token — retry with prompt=consent');
+    }
+    const expiresAt = tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000)
+      : null;
+    await this.prisma.googleConnection.upsert({
+      where: { userId },
+      create: {
+        userId,
+        email: profile.email || 'unknown@google',
+        name: profile.name || null,
+        refreshToken: tokens.refresh_token,
+        accessToken: tokens.access_token,
+        expiresAt,
+        scope: tokens.scope || null,
+      },
+      update: {
+        email: profile.email || 'unknown@google',
+        name: profile.name || null,
+        refreshToken: tokens.refresh_token,
+        accessToken: tokens.access_token,
+        expiresAt,
+        scope: tokens.scope || null,
+      },
+    });
+  }
+
+  /** Return an access token for this user, refreshing if needed. */
+  async getAccessTokenForUser(userId: string): Promise<string> {
+    const c = await this.prisma.googleConnection.findUnique({ where: { userId } });
+    if (!c) throw new UnauthorizedException('Google not connected — connect from /settings/integrations');
+    const now = Date.now();
+    const skewMs = 60_000; // refresh a minute early
+    if (c.accessToken && c.expiresAt && c.expiresAt.getTime() - skewMs > now) {
+      return c.accessToken;
+    }
+    const fresh = await this.refreshAccessToken(c.refreshToken);
+    const newExpiresAt = fresh.expires_in ? new Date(now + fresh.expires_in * 1000) : null;
+    await this.prisma.googleConnection.update({
+      where: { userId },
+      data: {
+        accessToken: fresh.access_token,
+        expiresAt: newExpiresAt,
+        scope: fresh.scope || c.scope,
+      },
+    });
+    return fresh.access_token;
+  }
+
+  async getConnection(userId: string) {
+    return this.prisma.googleConnection.findUnique({
+      where: { userId },
+      select: { email: true, name: true, scope: true, createdAt: true, updatedAt: true },
+    });
+  }
+
+  async disconnect(userId: string) {
+    await this.prisma.googleConnection.deleteMany({ where: { userId } });
+    return { ok: true };
   }
 
   async exchangeCode(code: string): Promise<GoogleTokens> {
