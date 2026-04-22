@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
@@ -48,10 +49,30 @@ export function NewTellerButton() {
             <p className="note" style={{ marginBottom: 18, lineHeight: 1.6 }}>
               A new tellar starts empty. You can import slides, record narration, and share it — all from the editor.
             </p>
+            <div style={{
+              display: 'flex',
+              gap: 10,
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: 12,
+              border: '1px dashed var(--line-2)',
+              background: 'var(--panel-2)',
+              marginBottom: 14,
+            }}>
+              <div>
+                <div style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink)' }}>
+                  Or start from a <em style={{ color: 'var(--accent)' }}>template</em>.
+                </div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.08em' }}>
+                  10 YC-inspired decks · Series A, sales, investor update…
+                </div>
+              </div>
+              <Link href="/templates" className="btn btn-ghost btn-sm">Browse →</Link>
+            </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
               <button className="btn btn-primary" disabled={busy} onClick={create}>
-                {busy ? '…' : 'Create & open editor'}
+                {busy ? '…' : 'Create blank & open editor'}
               </button>
             </div>
           </div>

@@ -27,6 +27,8 @@ import { LayoutPicker } from './LayoutPicker';
 import { PresentMode } from './PresentMode';
 import { MarkdownImport, type ParsedSlide } from './MarkdownImport';
 import { GoogleSlidesImport } from './GoogleSlidesImport';
+import { TemplatePicker } from './TemplatePicker';
+import type { Template } from '@/lib/templates';
 import { GradientPicker } from './GradientPicker';
 import { FormatToolbar, execInlineCmd } from './FormatToolbar';
 import { LAYOUTS, RenderSlide, readFontFamily, readFontScale, type Background, type BackgroundKind, type FontFamily } from '@/lib/slide-layouts';
@@ -110,6 +112,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
   const [presenting, setPresenting] = useState(false);
   const [importingMd, setImportingMd] = useState(false);
   const [importingGslides, setImportingGslides] = useState(false);
+  const [pickingTemplate, setPickingTemplate] = useState(false);
   const [showGradient, setShowGradient] = useState(false);
   const gradientBtnRef = useRef<HTMLButtonElement | null>(null);
   const layoutBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -376,6 +379,28 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
     flashToast(`${parsed.length} slide${parsed.length === 1 ? '' : 's'} imported`);
   }
 
+  async function importTemplate(template: Template) {
+    const created: Slide[] = [];
+    for (const spec of template.slides) {
+      const s = await api<Slide>(`/tellers/${teller.id}/slides`, { method: 'POST' });
+      const patch = {
+        layoutId: spec.layoutId,
+        layout: spec.layout || {},
+        title: spec.title ?? (spec.layout?.title as string) ?? '',
+        subtitle: spec.subtitle ?? ((spec.layout?.subtitle as string) ?? null),
+        eyebrow: spec.eyebrow ?? ((spec.layout?.eyebrow as string) ?? null),
+        notes: spec.notes ?? null,
+        background: spec.background || { kind: 'cream' },
+      };
+      await api(`/slides/${s.id}`, { method: 'PATCH', json: patch });
+      created.push({ ...s, ...patch } as Slide);
+    }
+    setTeller(t => ({ ...t, slides: [...t.slides, ...created] }));
+    if (created[0]) setActiveId(created[0].id);
+    setPickingTemplate(false);
+    flashToast(`${template.title} — ${created.length} slide${created.length === 1 ? '' : 's'} appended`);
+  }
+
   async function reorderSlides(newOrder: string[]) {
     const prevOrder = teller.slides.map(s => s.id);
     if (prevOrder.join('|') === newOrder.join('|')) return;
@@ -542,6 +567,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
           <div className="sl-head">
             <h3>Slides · {teller.slides.length}</h3>
             <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setPickingTemplate(true)} title="Append slides from a template" style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.1em', padding: '0 6px', width: 'auto', borderRadius: 2 }}>tpl</button>
               <button onClick={() => setImportingMd(true)} title="Import from markdown" style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.1em', padding: '0 6px', width: 'auto', borderRadius: 2 }}>md</button>
               <button onClick={() => setImportingGslides(true)} title="Import from Google Slides" style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.1em', padding: '0 6px', width: 'auto', borderRadius: 2 }}>gs</button>
               <button onClick={() => addSlide()} title="Add slide">+</button>
@@ -759,6 +785,13 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
             setTimeout(() => window.location.reload(), 800);
           }}
           onClose={() => setImportingGslides(false)}
+        />
+      )}
+
+      {pickingTemplate && (
+        <TemplatePicker
+          onPick={importTemplate}
+          onClose={() => setPickingTemplate(false)}
         />
       )}
 
