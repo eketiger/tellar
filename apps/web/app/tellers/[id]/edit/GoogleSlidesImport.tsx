@@ -1,20 +1,27 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 
-interface GoogleConfig { enabled: boolean }
+interface GoogleStatus {
+  enabled: boolean;
+  connected: boolean;
+  connection?: { email?: string; name?: string } | null;
+}
 
 /**
  * Google Slides → Tellar import modal.
  *
- * Three phases:
- *   - check config: `/api/google/config` → { enabled }. If the backend is
- *     missing GOOGLE_CLIENT_ID we show a "configure OAuth first" nudge.
- *   - connect: open a popup to /api/google/auth/start; the callback posts
- *     the access token back via window.postMessage and closes itself.
- *   - import: POST the URL + token to the backend; rely on the heuristic
- *     parser to produce Tellar slides. Refresh the editor to show them.
+ * Uses the persistent OAuth connection stored per user (see
+ * /settings/integrations). Three phases:
+ *   - loading status: GET /api/google/status while we figure out whether
+ *     the feature is configured AND the user connected.
+ *   - not-configured: API env has no GOOGLE_CLIENT_ID → nudge to configure.
+ *   - not-connected: send the user to /settings with a clear CTA instead
+ *     of asking them to re-consent per-import.
+ *   - ready: paste a URL, POST /tellers/:id/google-import (backend mints
+ *     the access token from the stored refresh token).
  */
 export function GoogleSlidesImport({
   tellerId,
@@ -25,48 +32,25 @@ export function GoogleSlidesImport({
   onDone: (count: number) => void;
   onClose: () => void;
 }) {
-  const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const popupRef = useRef<Window | null>(null);
 
   useEffect(() => {
-    api<GoogleConfig>('/google/config').then(c => setEnabled(c.enabled)).catch(() => setEnabled(false));
+    api<GoogleStatus>('/google/status')
+      .then(setStatus)
+      .catch(() => setStatus({ enabled: false, connected: false }));
   }, []);
-
-  useEffect(() => {
-    function onMsg(e: MessageEvent) {
-      if (!e.data || typeof e.data !== 'object') return;
-      if (e.data.type !== 'tellar:google-auth') return;
-      const token = e.data.payload?.accessToken as string | undefined;
-      if (token) setAccessToken(token);
-    }
-    window.addEventListener('message', onMsg);
-    return () => window.removeEventListener('message', onMsg);
-  }, []);
-
-  function connect() {
-    // Pop a window; the callback page closes itself and posts the token.
-    const w = 520, h = 640;
-    const left = window.screen.width / 2 - w / 2;
-    const top = window.screen.height / 2 - h / 2;
-    popupRef.current = window.open(
-      '/api/google/auth/start',
-      'tellar-google-auth',
-      `width=${w},height=${h},left=${left},top=${top}`,
-    );
-  }
 
   async function doImport() {
-    if (!accessToken || !url) return;
+    if (!url) return;
     setBusy(true);
     setError(null);
     try {
       const r = await api<{ ok: boolean; appended: number; title?: string }>(
         `/tellers/${tellerId}/google-import`,
-        { method: 'POST', json: { presentationUrl: url, accessToken } },
+        { method: 'POST', json: { presentationUrl: url } },
       );
       onDone(r.appended);
     } catch (e: any) {
@@ -97,28 +81,34 @@ export function GoogleSlidesImport({
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
         </div>
 
-        {enabled === null && <div className="note">Checking configuration…</div>}
+        {!status && <div className="note">Checking connection…</div>}
 
-        {enabled === false && (
+        {status && !status.enabled && (
           <div style={{ padding: 14, border: '1px dashed var(--line-2)', background: 'var(--panel-2)', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)', letterSpacing: '.05em', lineHeight: 1.6 }}>
             Google OAuth is not configured on this environment.<br />
             Set <strong>GOOGLE_CLIENT_ID</strong>, <strong>GOOGLE_CLIENT_SECRET</strong> and optionally <strong>GOOGLE_REDIRECT_URI</strong> in your API env and restart.
           </div>
         )}
 
-        {enabled && !accessToken && (
-          <>
-            <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-              Tellar needs read access to your Google Slides to import a deck. We ask for the minimum scope and never store the token.
-            </p>
-            <button className="btn btn-primary" onClick={connect} style={{ alignSelf: 'flex-start' }}>
-              Connect Google →
-            </button>
-          </>
+        {status && status.enabled && !status.connected && (
+          <div style={{ padding: 16, border: '1px solid var(--line-2)', background: 'var(--panel-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+              Connect your Google account once in <strong>Settings → Integrations</strong> and every future import runs silently — no popup, no re-consent.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-ghost" onClick={onClose}>Later</button>
+              <Link href="/settings?tab=integrations#integrations" className="btn btn-primary">
+                Connect Google →
+              </Link>
+            </div>
+          </div>
         )}
 
-        {enabled && accessToken && (
+        {status && status.enabled && status.connected && (
           <>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--good)', letterSpacing: '.12em' }}>
+              ● connected as <strong style={{ color: 'var(--ink-2)' }}>{status.connection?.email || 'your Google account'}</strong>
+            </div>
             <label style={{ display: 'block' }}>
               <span style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.2em', color: 'var(--ink-3)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>presentation url</span>
               <input
@@ -141,9 +131,9 @@ export function GoogleSlidesImport({
             </label>
             {error && <div className="err">! {error}</div>}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--good)', letterSpacing: '.12em' }}>
-                ● connected
-              </span>
+              <Link href="/settings?tab=integrations#integrations" style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', textDecoration: 'none', letterSpacing: '.1em' }}>
+                manage connection →
+              </Link>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
                 <button className="btn btn-primary" onClick={doImport} disabled={busy || !url}>
