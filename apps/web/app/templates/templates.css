@@ -23,8 +23,8 @@ main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 56px 32
 
 .tmpl-card { display: flex; flex-direction: column; border: 1px solid var(--line); background: var(--panel); text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
 .tmpl-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.tmpl-preview { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border-bottom: 1px solid var(--line); background: #f6f3ed; }
-.tmpl-preview-inner { position: absolute; inset: 0; pointer-events: none; }
+.tmpl-preview { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border-bottom: 1px solid var(--line); background: #f6f3ed; container-type: inline-size; }
+.tmpl-preview-inner { position: absolute; top: 0; left: 0; width: 860px; height: 537.5px; transform-origin: top left; transform: scale(calc(100cqw / 860px)); pointer-events: none; }
 .tmpl-stack { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; font-family: var(--mono); font-size: 9px; letter-spacing: .12em; color: rgba(12, 13, 15, .7); text-transform: uppercase; }
 .tmpl-stack span { background: rgba(255,255,255,.8); padding: 2px 7px; border: 1px solid rgba(0,0,0,.08); }
 

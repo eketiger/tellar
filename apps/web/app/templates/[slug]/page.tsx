@@ -67,7 +67,9 @@ export default async function TemplateDetail({ params }: { params: Promise<Param
             <UseTemplateClient template={template} />
           </div>
           <div className="tmpl-detail-cover">
-            <RenderSlide slide={template.slides[0] as any} />
+            <div className="tmpl-scaled-inner">
+              <RenderSlide slide={template.slides[0] as any} />
+            </div>
           </div>
         </section>
 
@@ -80,7 +82,9 @@ export default async function TemplateDetail({ params }: { params: Promise<Param
             {template.slides.map((slide, i) => (
               <figure key={i} className="tmpl-detail-slide">
                 <div className="tmpl-detail-slide-frame">
-                  <RenderSlide slide={slide as any} />
+                  <div className="tmpl-scaled-inner">
+                    <RenderSlide slide={slide as any} />
+                  </div>
                 </div>
                 <figcaption>
                   <span className="tmpl-slide-num">{String(i + 1).padStart(2, '0')}</span>

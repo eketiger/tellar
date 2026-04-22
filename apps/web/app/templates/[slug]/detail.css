@@ -16,12 +16,13 @@
 .tmpl-detail-cta:hover:not(:disabled) { background: transparent; color: var(--accent); }
 .tmpl-detail-cta:disabled { opacity: .5; cursor: wait; }
 
-.tmpl-detail-cover { aspect-ratio: 16 / 10; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 22px 56px rgba(0, 0, 0, .32); background: #f6f3ed; }
+.tmpl-detail-cover { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 22px 56px rgba(0, 0, 0, .32); background: #f6f3ed; container-type: inline-size; }
+.tmpl-scaled-inner { position: absolute; top: 0; left: 0; width: 860px; height: 537.5px; transform-origin: top left; transform: scale(calc(100cqw / 860px)); pointer-events: none; }
 
 .tmpl-detail-slides { margin-bottom: 64px; }
 .tmpl-detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
 .tmpl-detail-slide { display: flex; flex-direction: column; gap: 8px; }
-.tmpl-detail-slide-frame { aspect-ratio: 16 / 10; overflow: hidden; border: 1px solid var(--line); background: #f6f3ed; }
+.tmpl-detail-slide-frame { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border: 1px solid var(--line); background: #f6f3ed; container-type: inline-size; }
 .tmpl-detail-slide figcaption { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--ink-3); text-transform: uppercase; }
 .tmpl-slide-num { color: var(--accent); }
 .tmpl-slide-layout { color: var(--ink-3); }
