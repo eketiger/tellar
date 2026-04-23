@@ -1,11 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { AgentAskDto } from '@tellar/api-types';
 import { KnowledgeBaseService } from './knowledge-base';
+import { ChatBackend } from './chat-backend';
 
-const MODEL = 'claude-sonnet-4-20250514';
 const COPILOT_DAILY_LIMIT = 50;
 const ASK_DAILY_LIMIT_PER_TELLER = 20;
 
@@ -30,15 +29,18 @@ function today() {
 
 @Injectable()
 export class AgentService {
-  private anthropic = process.env.ANTHROPIC_API_KEY
-    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    : null;
+  // Uniform chat interface across Ollama / OpenAI / Anthropic — chosen at
+  // boot from env vars. See ChatBackend for precedence rules.
+  private chat = new ChatBackend();
 
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
     private kb: KnowledgeBaseService,
-  ) {}
+  ) {
+    // eslint-disable-next-line no-console
+    console.log(`[agent] chat backend = ${this.chat.describe()}`);
+  }
 
   async ask(dto: AgentAskDto & { userId?: string }) {
     if (dto.userId) await this.enforceAskLimit(dto.userId, dto.tellerId);
@@ -67,12 +69,11 @@ export class AgentService {
         .join('\n\n---\n\n');
 
     let answer: string;
-    if (this.anthropic) {
+    if (this.chat.available()) {
       try {
-        const resp = await this.anthropic.messages.create({
-          model: MODEL,
-          max_tokens: 512,
+        answer = await this.chat.complete({
           system: ASK_SYSTEM,
+          maxTokens: 512,
           messages: [
             ...(dto.history || []).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
             {
@@ -81,10 +82,6 @@ export class AgentService {
             },
           ],
         });
-        answer = resp.content
-          .filter(c => c.type === 'text')
-          .map((c: any) => c.text)
-          .join('\n');
       } catch {
         answer = this.mockAnswer(dto.question, chunks, slidePool);
       }
@@ -127,15 +124,13 @@ export class AgentService {
 
     const prompt = this.copilotPrompt(kind, { ...opts, source });
     let suggestion = '';
-    if (this.anthropic) {
+    if (this.chat.available()) {
       try {
-        const r = await this.anthropic.messages.create({
-          model: MODEL,
-          max_tokens: 400,
+        suggestion = await this.chat.complete({
           system: COPILOT_SYSTEM,
+          maxTokens: 400,
           messages: [{ role: 'user', content: prompt }],
         });
-        suggestion = r.content.filter(c => c.type === 'text').map((c: any) => c.text).join('\n');
       } catch {
         suggestion = this.mockCopilot(kind, source);
       }
