@@ -53,7 +53,7 @@ export class EcsStack extends Stack {
     // FargateTaskDefinition's executionRole automatically. No explicit
     // grantPull() call is needed (and it fails synth across stack boundaries).
 
-    const envFromSsm = {
+    const envFromSsm: Record<string, string> = {
       NEXTAUTH_URL:                     ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/NEXTAUTH_URL`),
       GOOGLE_CLIENT_ID:                 ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/GOOGLE_CLIENT_ID`),
       GITHUB_CLIENT_ID:                 ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/GITHUB_CLIENT_ID`),
@@ -64,6 +64,17 @@ export class EcsStack extends Stack {
       NODE_ENV: 'production',
       PORT: '3000',
     };
+
+    // When OllamaStack is enabled it writes OPENAI_BASE_URL / OPENAI_MODEL /
+    // OPENAI_EMBED_MODEL under the same SSM prefix. Pull them here so the
+    // ECS task hits the self-hosted inference host transparently.
+    if (props.cfg.ollama) {
+      envFromSsm.OPENAI_BASE_URL  = ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/OPENAI_BASE_URL`);
+      envFromSsm.OPENAI_MODEL     = ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/OPENAI_MODEL`);
+      if (props.cfg.ollama.embedModel) {
+        envFromSsm.OPENAI_EMBED_MODEL = ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/OPENAI_EMBED_MODEL`);
+      }
+    }
 
     const secretsForContainer: Record<string, ecs.Secret> = {
       DATABASE_URL:          ecs.Secret.fromSecretsManager(props.secrets['database-url']),

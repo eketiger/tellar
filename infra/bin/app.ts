@@ -10,6 +10,7 @@ import { EcsStack } from '../lib/stacks/ecs-stack';
 import { CdnStack } from '../lib/stacks/cdn-stack';
 import { MonitoringStack } from '../lib/stacks/monitoring-stack';
 import { IamStack } from '../lib/stacks/iam-stack';
+import { OllamaStack } from '../lib/stacks/ollama-stack';
 
 const app = new App();
 const envFlag = app.node.tryGetContext('env') as string | undefined;
@@ -48,3 +49,15 @@ new IamStack(app, `${prefix}-iam`, {
   cluster: ecs.cluster,
   service: ecs.fargateService,
 });
+
+// Optional: self-hosted Ollama for inference. Only instantiated when the
+// config has `ollama` set so unrelated deploys don't spin up a GPU by
+// mistake. After first deploy, /<appName>/<env>/OPENAI_BASE_URL is set in
+// SSM and the ECS task picks it up on next redeploy.
+if (cfg.ollama) {
+  new OllamaStack(app, `${prefix}-ollama`, {
+    env, cfg,
+    vpc: network.vpc,
+    consumerSecurityGroup: ecs.fargateService.connections.securityGroups[0],
+  });
+}
