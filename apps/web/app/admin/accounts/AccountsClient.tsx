@@ -3,34 +3,52 @@
 import { useState } from 'react';
 import { api } from '@/lib/api';
 
-export function AccountsClient({ initial, initialQuery }: { initial: any; initialQuery: string }) {
-  const [items, setItems] = useState(initial.items);
+interface AccountsPage {
+  items: any[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export function AccountsClient({ initial, initialQuery }: { initial: AccountsPage; initialQuery: string }) {
+  const [data, setData] = useState<AccountsPage>(initial);
   const [q, setQ] = useState(initialQuery);
   const [busy, setBusy] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const items = data.items;
 
-  async function search() {
-    const r = await api<any>(`/admin/accounts?q=${encodeURIComponent(q)}`);
-    setItems(r.items);
+  async function load(opts: { q?: string; page?: number } = {}) {
+    setLoading(true);
+    const nextQ = opts.q ?? q;
+    const nextPage = opts.page ?? 1;
+    try {
+      const r = await api<AccountsPage>(`/admin/accounts?q=${encodeURIComponent(nextQ)}&page=${nextPage}`);
+      setData(r);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function setRole(id: string, role: 'USER' | 'ADMIN') {
     setBusy(id);
     await api(`/admin/accounts/${id}/role`, { method: 'PATCH', json: { role } });
-    setItems((xs: any[]) => xs.map(x => (x.id === id ? { ...x, role } : x)));
+    setData(d => ({ ...d, items: d.items.map(x => (x.id === id ? { ...x, role } : x)) }));
     setBusy(null);
   }
 
   async function setSuspended(id: string, isSuspended: boolean) {
     setBusy(id);
     await api(`/admin/accounts/${id}/suspended`, { method: 'PATCH', json: { isSuspended } });
-    setItems((xs: any[]) => xs.map(x => (x.id === id ? { ...x, isSuspended } : x)));
+    setData(d => ({ ...d, items: d.items.map(x => (x.id === id ? { ...x, isSuspended } : x)) }));
     setBusy(null);
   }
+
+  const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
 
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--serif)', fontWeight: 300, fontSize: 44, letterSpacing: '-.025em', marginBottom: 20 }}>
-        Accounts <span className="note" style={{ marginLeft: 10 }}>· {initial.total} total</span>
+        Accounts <span className="note" style={{ marginLeft: 10 }}>· {data.total} total</span>
       </h1>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
@@ -39,9 +57,11 @@ export function AccountsClient({ initial, initialQuery }: { initial: any; initia
           placeholder="Search email or name…"
           value={q}
           onChange={e => setQ(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && search()}
+          onKeyDown={e => e.key === 'Enter' && load({ q, page: 1 })}
         />
-        <button className="btn" onClick={search}>Search</button>
+        <button className="btn" onClick={() => load({ q, page: 1 })} disabled={loading}>
+          {loading ? '…' : 'Search'}
+        </button>
       </div>
 
       <div style={{ border: '1px solid var(--line)', background: 'var(--panel)' }}>
@@ -86,6 +106,30 @@ export function AccountsClient({ initial, initialQuery }: { initial: any; initia
         ))}
         {items.length === 0 && <div style={{ padding: 24, textAlign: 'center' }} className="note">No accounts match.</div>}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)' }}>
+          <span className="note">
+            page {data.page} of {totalPages} · {data.pageSize} per page
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={loading || data.page <= 1}
+              onClick={() => load({ q, page: data.page - 1 })}
+            >
+              ← prev
+            </button>
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={loading || data.page >= totalPages}
+              onClick={() => load({ q, page: data.page + 1 })}
+            >
+              next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

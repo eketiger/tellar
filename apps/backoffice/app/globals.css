@@ -1,5 +1,4 @@
-/* Tellar design tokens + layout primitives — imported from the main app */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap');
+/* Tellar design tokens — fonts loaded via next/font in app/layout.tsx. */
 
 :root {
   --bg: #0c0d0f; --bg-2: #131417; --panel: #15171b; --panel-2: #1a1c21;
@@ -10,9 +9,9 @@
   --topbar-bg: rgba(12, 13, 15, .85);
   --halo-1: rgba(244, 185, 66, .06);
   --halo-2: rgba(159, 143, 211, .05);
-  --serif: 'Fraunces', Georgia, serif;
-  --mono: 'JetBrains Mono', ui-monospace, monospace;
-  --sans: 'Inter Tight', system-ui, sans-serif;
+  --serif: var(--tellar-font-serif, 'Fraunces'), Georgia, serif;
+  --mono: var(--tellar-font-mono, 'JetBrains Mono'), ui-monospace, monospace;
+  --sans: var(--tellar-font-sans, 'Inter Tight'), system-ui, sans-serif;
 }
 html[data-theme='light'] {
   --bg: #f6f4ee; --bg-2: #efece4; --panel: #fff; --panel-2: #faf8f1;

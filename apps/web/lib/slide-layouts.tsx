@@ -415,7 +415,7 @@ const ImageFullLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; e
   return (
     <div style={{ ...wrapperStyle, width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
       {slots.image?.url
-        ? <img src={slots.image.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        ? <img src={slots.image.url} alt="" loading="lazy" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#6d6a63', fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', background: '#0c0d0f' }}>no image</div>}
       <ImageOverlay name="image" edit={edit} />
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,.7) 100%)', pointerEvents: 'none' }} />
@@ -439,7 +439,7 @@ const ImageRightLayout = ({ slots, bg, edit }: { slots: Slots; bg?: Background; 
       </div>
       <div style={{ position: 'relative', background: '#0c0d0f', overflow: 'hidden' }}>
         {slots.image?.url
-          ? <img src={slots.image.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? <img src={slots.image.url} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#6d6a63', fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase' }}>no image</div>}
         <ImageOverlay name="image" edit={edit} />
       </div>
