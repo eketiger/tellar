@@ -55,10 +55,13 @@ export class BillingController {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!s || !secret) return { received: true, skipped: 'no-stripe-configured' };
     if (!sig) throw new BadRequestException('missing signature');
-    const body = req.rawBody || Buffer.from(JSON.stringify((req as any).body || {}));
+    // The raw body is required for HMAC verification. Re-serialising the
+    // parsed JSON would silently produce a different byte stream and the
+    // HMAC would never match — fail loudly instead.
+    if (!req.rawBody) throw new BadRequestException('missing raw body — middleware misconfigured');
     let event;
     try {
-      event = s.webhooks.constructEvent(body, sig, secret);
+      event = s.webhooks.constructEvent(req.rawBody, sig, secret);
     } catch (e: any) {
       throw new BadRequestException(`bad signature: ${e.message}`);
     }

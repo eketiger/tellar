@@ -1,5 +1,4 @@
-/* Tellar design tokens + layout primitives — imported from the main app */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap');
+/* Tellar design tokens — fonts loaded via next/font in app/layout.tsx. */
 
 :root {
   --bg: #0c0d0f; --bg-2: #131417; --panel: #15171b; --panel-2: #1a1c21;
@@ -7,9 +6,21 @@
   --ink: #e8e6e1; --ink-2: #a8a69e; --ink-3: #6d6a63;
   --accent: #f4b942; --accent-2: #e8956d; --good: #8cc88c; --bad: #d47a7a;
   --violet: #9f8fd3; --blue: #7fa8d4;
-  --serif: 'Fraunces', Georgia, serif;
-  --mono: 'JetBrains Mono', ui-monospace, monospace;
-  --sans: 'Inter Tight', system-ui, sans-serif;
+  --topbar-bg: rgba(12, 13, 15, .85);
+  --halo-1: rgba(244, 185, 66, .06);
+  --halo-2: rgba(159, 143, 211, .05);
+  --serif: var(--tellar-font-serif, 'Fraunces'), Georgia, serif;
+  --mono: var(--tellar-font-mono, 'JetBrains Mono'), ui-monospace, monospace;
+  --sans: var(--tellar-font-sans, 'Inter Tight'), system-ui, sans-serif;
+}
+html[data-theme='light'] {
+  --bg: #f6f4ee; --bg-2: #efece4; --panel: #fff; --panel-2: #faf8f1;
+  --line: #e3dfd2; --line-2: #d4cebb; --line-3: #b8b09a;
+  --ink: #1a1a1a; --ink-2: #4a4a4a; --ink-3: #777063;
+  --accent: #b8851b; --accent-2: #b85d2e; --good: #2f7a39; --bad: #b04545;
+  --topbar-bg: rgba(255, 255, 255, .9);
+  --halo-1: rgba(184, 133, 27, .08);
+  --halo-2: rgba(107, 90, 176, .06);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.45; min-height: 100vh; }
@@ -17,11 +28,11 @@ a { color: inherit; text-decoration: none; }
 
 body::before {
   content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
-  background: radial-gradient(1200px 600px at 85% -10%, rgba(244,185,66,.06), transparent 60%),
-              radial-gradient(800px 500px at 10% 110%, rgba(159,143,211,.05), transparent 60%);
+  background: radial-gradient(1200px 600px at 85% -10%, var(--halo-1), transparent 60%),
+              radial-gradient(800px 500px at 10% 110%, var(--halo-2), transparent 60%);
 }
 
-.bo-top { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--line); background: rgba(12,13,15,.85); backdrop-filter: blur(12px); }
+.bo-top { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--line); background: var(--topbar-bg); backdrop-filter: blur(12px); }
 .bo-brand { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 22px; letter-spacing: -.02em; color: var(--ink); }
 .bo-brand::first-letter { color: var(--accent); }
 .bo-tag { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; color: var(--bad); text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--bad); border-radius: 3px; margin-left: 12px; }
@@ -34,7 +45,11 @@ body::before {
 .bo-head h1 em { font-style: italic; color: var(--accent); }
 .bo-head p { font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: 15px; margin-top: 8px; }
 
-.bo-nav { display: flex; gap: 4px; padding: 6px; background: rgba(12,13,15,.92); border: 1px solid var(--line-2); border-radius: 40px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 22px; width: fit-content; }
+.bo-nav { display: flex; gap: 4px; padding: 6px; background: var(--topbar-bg); border: 1px solid var(--line-2); border-radius: 40px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 22px; width: fit-content; }
+
+/* WCAG 2.4.7 focus ring */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+input:focus-visible, textarea:focus-visible, .field-input:focus-visible { outline-offset: 1px; }
 .bo-nav a { padding: 8px 14px; color: var(--ink-2); border-radius: 40px; transition: all .2s; }
 .bo-nav a:hover { color: var(--ink); background: var(--panel); }
 .bo-nav a.active { color: #0c0d0f; background: var(--accent); }

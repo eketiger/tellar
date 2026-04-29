@@ -1,122 +1,157 @@
 import Anthropic from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
 
 /**
- * Pluggable chat backend. Unifies the three LLM surfaces Tellar supports:
+ * Anthropic chat backend — single source of truth for every Claude call.
  *
- *   - **Ollama** (or any OpenAI-compatible local server) — set
- *     `OPENAI_BASE_URL=http://localhost:11434/v1` + `OPENAI_MODEL=qwen2.5:7b`.
- *     Explicit setting of OPENAI_BASE_URL wins over everything so "point at
- *     my local LLM" works even if a real Anthropic key is present.
- *   - **Anthropic Claude** — set `ANTHROPIC_API_KEY`.
- *   - **OpenAI (cloud)** — set `OPENAI_API_KEY` without `OPENAI_BASE_URL`.
- *   - **None** — every caller falls back to the mock responder.
+ * Tellar uses Claude for: agent Ask, copilot rewrites, tellar insights,
+ * and the authoring (conversational tellar editor). All four paths share
+ * this class so we apply the same best practices everywhere:
  *
- * Override precedence can be forced with `LLM_BACKEND=anthropic|openai` when
- * both credentials are configured (useful for A/B tests).
+ *   - **Prompt caching** (`cache_control: { type: 'ephemeral' }`) on the
+ *     system prompt and any large stable context (full slide deck, KB,
+ *     transcripts). Reduces per-request cost dramatically when the same
+ *     deck is queried repeatedly.
+ *   - **Retries** on transient 429/529 with exponential backoff, capped
+ *     at three attempts. Anthropic's API surfaces overloads cleanly so
+ *     we propagate the error after the cap.
+ *   - **Tool use** support — pass `tools` and the SDK returns
+ *     `tool_use` blocks; the caller orchestrates the loop.
+ *   - **Mock fallback** when ANTHROPIC_API_KEY is unset, so the app
+ *     boots with no external dependencies (per CLAUDE.md).
  */
-export type ChatKind = 'openai' | 'anthropic' | 'none';
+export type ChatKind = 'anthropic' | 'none';
+
+export type CacheBreakpoint = { type: 'ephemeral' };
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
-  content: string;
+  /** Either a plain string or a structured content array (Claude tool-use). */
+  content: any;
+}
+
+/** A cacheable chunk of system text. Marking the *last* chunk with
+ *  `cache: { type: 'ephemeral' }` tells Claude to cache up to that point.
+ *  Subsequent calls with the same prefix hit the cache. */
+export interface SystemBlock {
+  text: string;
+  cache?: CacheBreakpoint;
+}
+
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  input_schema: any;
 }
 
 export interface ChatCompleteInput {
-  system: string;
+  system: string | SystemBlock[];
   messages: ChatMessage[];
   maxTokens?: number;
+  tools?: ToolDefinition[];
+  /** Force the model to pick a specific tool, or any tool. */
+  tool_choice?: { type: 'auto' } | { type: 'any' } | { type: 'tool'; name: string };
+  /** Hard cap on retries for transient errors. Default 2. */
+  retries?: number;
 }
 
-const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
+export interface ChatCompleteOutput {
+  /** Concatenated text blocks (excluding tool_use). */
+  text: string;
+  /** Raw content array for callers that need tool_use blocks. */
+  content: any[];
+  stopReason: string | null;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
+  };
+}
+
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+const TRANSIENT_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504, 529]);
 
 export class ChatBackend {
   private kind: ChatKind = 'none';
   private anthropic: Anthropic | null = null;
-  private openai: OpenAI | null = null;
-  private openaiModel = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
-  private anthropicModel = process.env.ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL;
+  private model = process.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL;
 
   constructor() {
-    const baseURL = process.env.OPENAI_BASE_URL?.trim() || undefined;
-    const openaiKey = process.env.OPENAI_API_KEY?.trim() || undefined;
-    const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim() || undefined;
-    const forceBackend = process.env.LLM_BACKEND?.trim()?.toLowerCase();
-
-    // 1) Forced backend via LLM_BACKEND.
-    if (forceBackend === 'openai' && (baseURL || openaiKey)) {
-      this.initOpenAI(baseURL, openaiKey);
-      return;
+    const key = process.env.ANTHROPIC_API_KEY?.trim();
+    if (key) {
+      this.anthropic = new Anthropic({ apiKey: key });
+      this.kind = 'anthropic';
     }
-    if (forceBackend === 'anthropic' && anthropicKey) {
-      this.initAnthropic(anthropicKey);
-      return;
-    }
-
-    // 2) Prefer local Ollama when OPENAI_BASE_URL is explicitly set — that's
-    // the creator saying "I have a local LLM, use it".
-    if (baseURL) {
-      this.initOpenAI(baseURL, openaiKey);
-      return;
-    }
-
-    // 3) Cloud preference: Claude (better for RAG with citations) then OpenAI.
-    if (anthropicKey) {
-      this.initAnthropic(anthropicKey);
-      return;
-    }
-    if (openaiKey) {
-      this.initOpenAI(undefined, openaiKey);
-      return;
-    }
-  }
-
-  private initOpenAI(baseURL: string | undefined, apiKey: string | undefined) {
-    // Ollama ignores the key but the SDK still requires a non-empty string.
-    this.openai = new OpenAI({ apiKey: apiKey || 'ollama-placeholder', baseURL });
-    this.kind = 'openai';
-  }
-
-  private initAnthropic(apiKey: string) {
-    this.anthropic = new Anthropic({ apiKey });
-    this.kind = 'anthropic';
   }
 
   available(): boolean {
-    return this.kind !== 'none';
+    return this.kind === 'anthropic' && this.anthropic !== null;
   }
 
   describe(): string {
-    if (this.kind === 'openai') return `openai:${this.openaiModel}${process.env.OPENAI_BASE_URL ? ' (custom base)' : ''}`;
-    if (this.kind === 'anthropic') return `anthropic:${this.anthropicModel}`;
-    return 'mock';
+    return this.available() ? `anthropic:${this.model}` : 'mock';
   }
 
-  async complete({ system, messages, maxTokens = 512 }: ChatCompleteInput): Promise<string> {
-    if (this.kind === 'anthropic' && this.anthropic) {
-      const resp = await this.anthropic.messages.create({
-        model: this.anthropicModel,
-        max_tokens: maxTokens,
-        system,
-        messages,
-      });
-      return resp.content
-        .filter((c: any) => c.type === 'text')
-        .map((c: any) => c.text)
-        .join('\n');
+  /** Backwards-compatible thin completion that returns just the text. */
+  async complete(input: ChatCompleteInput): Promise<string> {
+    const r = await this.completeRich(input);
+    return r.text;
+  }
+
+  /** Full-shape completion for callers that need tool_use / usage stats. */
+  async completeRich({
+    system,
+    messages,
+    maxTokens = 512,
+    tools,
+    tool_choice,
+    retries = 2,
+  }: ChatCompleteInput): Promise<ChatCompleteOutput> {
+    if (!this.anthropic) throw new Error('Anthropic chat backend not configured');
+
+    // System: a string is auto-converted to a single ephemeral-cache block.
+    // An explicit SystemBlock[] lets callers cache only stable prefixes.
+    const systemPayload = Array.isArray(system)
+      ? system.map(s => ({
+          type: 'text',
+          text: s.text,
+          ...(s.cache ? { cache_control: s.cache } : {}),
+        }))
+      : [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } as const }];
+
+    let attempt = 0;
+    while (true) {
+      try {
+        const resp = await this.anthropic.messages.create({
+          model: this.model,
+          max_tokens: maxTokens,
+          system: systemPayload as any,
+          messages: messages as any,
+          ...(tools ? { tools: tools as any } : {}),
+          ...(tool_choice ? { tool_choice: tool_choice as any } : {}),
+        });
+        const text = (resp.content || [])
+          .filter((c: any) => c.type === 'text')
+          .map((c: any) => c.text)
+          .join('\n');
+        return {
+          text,
+          content: resp.content as any[],
+          stopReason: (resp as any).stop_reason ?? null,
+          usage: {
+            inputTokens: (resp.usage as any)?.input_tokens ?? 0,
+            outputTokens: (resp.usage as any)?.output_tokens ?? 0,
+            cacheCreationInputTokens: (resp.usage as any)?.cache_creation_input_tokens,
+            cacheReadInputTokens: (resp.usage as any)?.cache_read_input_tokens,
+          },
+        };
+      } catch (e: any) {
+        const status: number | undefined = e?.status ?? e?.response?.status;
+        if (attempt >= retries || !status || !TRANSIENT_STATUSES.has(status)) throw e;
+        const backoffMs = 250 * Math.pow(2, attempt) + Math.floor(Math.random() * 100);
+        await new Promise(r => setTimeout(r, backoffMs));
+        attempt++;
+      }
     }
-    if (this.kind === 'openai' && this.openai) {
-      const r = await this.openai.chat.completions.create({
-        model: this.openaiModel,
-        max_tokens: maxTokens,
-        messages: [
-          { role: 'system', content: system },
-          ...messages.map(m => ({ role: m.role, content: m.content })),
-        ],
-      });
-      return r.choices[0]?.message?.content || '';
-    }
-    throw new Error('No chat backend configured');
   }
 }

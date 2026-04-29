@@ -1,8 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { chunkText } from './chunker';
 import { embedBatch, embedText } from './embeddings';
 import { pineconeIndex } from './pinecone';
+
+function hashBundle(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
 
 function stripHtml(s: string) {
   return (s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
@@ -33,14 +38,27 @@ export class KnowledgeBaseService {
     return { teller: t, text: [slideText, transcripts].filter(Boolean).join('\n') };
   }
 
-  async indexTeller(tellerId: string) {
+  async indexTeller(tellerId: string, opts: { force?: boolean } = {}) {
+    const bundle = await this.tellerText(tellerId);
+    if (!bundle) return { indexed: 0, skipped: true, reason: 'not-found' };
+
+    // Skip the entire indexing pipeline (chunk → embed → upsert) when the
+    // content hasn't changed since the last run. Embeddings are expensive
+    // — for active editors this saves dozens of Voyage calls per minute.
+    const contentHash = hashBundle(bundle.text);
+    if (
+      !opts.force &&
+      bundle.teller.vectorContentHash === contentHash &&
+      bundle.teller.vectorStatus &&
+      bundle.teller.vectorStatus.startsWith('indexed')
+    ) {
+      return { indexed: 0, skipped: true, reason: 'unchanged' };
+    }
+
     await this.prisma.teller.update({
       where: { id: tellerId },
       data: { vectorStatus: 'pending' },
     });
-
-    const bundle = await this.tellerText(tellerId);
-    if (!bundle) return { indexed: 0, skipped: true, reason: 'not-found' };
     const chunks = chunkText(bundle.text);
     if (!chunks.length) return { indexed: 0, skipped: true, reason: 'empty' };
 
@@ -83,7 +101,11 @@ export class KnowledgeBaseService {
     }
     await this.prisma.teller.update({
       where: { id: tellerId },
-      data: { vectorStatus: idx ? 'indexed' : 'indexed-local', vectorizedAt: new Date() },
+      data: {
+        vectorStatus: idx ? 'indexed' : 'indexed-local',
+        vectorizedAt: new Date(),
+        vectorContentHash: contentHash,
+      },
     });
     return { indexed: chunks.length, skipped: !idx };
   }

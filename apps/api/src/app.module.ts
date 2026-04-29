@@ -17,6 +17,8 @@ import { GdprModule } from './gdpr/gdpr.module';
 import { SuperAdminModule } from './superadmin/superadmin.module';
 import { SlideImagesModule } from './slide-images/slide-images.module';
 import { GoogleModule } from './google/google.module';
+import { InsightsModule } from './insights/insights.module';
+import { AuthoringModule } from './authoring/authoring.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { GoogleModule } from './google/google.module';
     SuperAdminModule,
     SlideImagesModule,
     GoogleModule,
+    InsightsModule,
+    AuthoringModule,
   ],
 })
 export class AppModule {}

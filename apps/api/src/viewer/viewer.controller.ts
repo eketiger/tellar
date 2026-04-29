@@ -5,6 +5,9 @@ import {
   ForbiddenException,
   Get,
   Headers,
+  HttpException,
+  HttpStatus,
+  Ip,
   Param,
   Post,
   UnauthorizedException,
@@ -13,6 +16,7 @@ import { JwtService } from '@nestjs/jwt';
 import { SharesService } from '../shares/shares.service';
 import { ZodValidate } from '../common/zod.pipe';
 import { AuthorizeViewerDto } from '@tellar/api-types';
+import { RateLimiter } from '../common/rate-limiter';
 
 interface ShareTokenPayload {
   shareId: string;
@@ -23,13 +27,31 @@ interface ShareTokenPayload {
 
 @Controller('v')
 export class ViewerController {
+  // Brute-force guard for /v/:slug/authorize. Two layered buckets:
+  //  - per (ip + slug): 10 attempts / 60s, refills slowly so a real visitor
+  //    fixing a typo isn't punished, but a script can't enumerate.
+  //  - per slug globally: 60 attempts / 60s — catches distributed attempts
+  //    against a popular share without a single IP showing up.
+  private readonly attempts = new RateLimiter(10, 10 / 60);
+  private readonly slugAttempts = new RateLimiter(60, 60 / 60);
+
   constructor(private shares: SharesService, private jwt: JwtService) {}
 
   @Post(':slug/authorize')
   async authorize(
     @Param('slug') slug: string,
+    @Ip() ip: string,
     @Body(new ZodValidate(AuthorizeViewerDto)) dto: any,
   ) {
+    const ipKey = `auth:${ip || 'unknown'}:${slug}`;
+    const slugKey = `auth:${slug}`;
+    if (!this.attempts.tryConsume(ipKey) || !this.slugAttempts.tryConsume(slugKey)) {
+      throw new HttpException(
+        { reason: 'rate-limited', retryAfterSec: 60 },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const share = await this.shares.bySlug(slug);
     if (share.expiresAt && share.expiresAt.getTime() < Date.now())
       throw new ForbiddenException({ reason: 'expired' });

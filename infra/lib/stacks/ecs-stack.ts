@@ -65,17 +65,6 @@ export class EcsStack extends Stack {
       PORT: '3000',
     };
 
-    // When OllamaStack is enabled it writes OPENAI_BASE_URL / OPENAI_MODEL /
-    // OPENAI_EMBED_MODEL under the same SSM prefix. Pull them here so the
-    // ECS task hits the self-hosted inference host transparently.
-    if (props.cfg.ollama) {
-      envFromSsm.OPENAI_BASE_URL  = ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/OPENAI_BASE_URL`);
-      envFromSsm.OPENAI_MODEL     = ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/OPENAI_MODEL`);
-      if (props.cfg.ollama.embedModel) {
-        envFromSsm.OPENAI_EMBED_MODEL = ssm.StringParameter.valueForStringParameter(this, `/${props.cfg.appName}/${props.cfg.environment}/OPENAI_EMBED_MODEL`);
-      }
-    }
-
     const secretsForContainer: Record<string, ecs.Secret> = {
       DATABASE_URL:          ecs.Secret.fromSecretsManager(props.secrets['database-url']),
       JWT_SECRET:            ecs.Secret.fromSecretsManager(props.secrets['jwt-secret']),
@@ -85,7 +74,7 @@ export class EcsStack extends Stack {
       STRIPE_SECRET_KEY:     ecs.Secret.fromSecretsManager(props.secrets['stripe-secret-key']),
       STRIPE_WEBHOOK_SECRET: ecs.Secret.fromSecretsManager(props.secrets['stripe-webhook-secret']),
       ANTHROPIC_API_KEY:     ecs.Secret.fromSecretsManager(props.secrets['anthropic-api-key']),
-      OPENAI_API_KEY:        ecs.Secret.fromSecretsManager(props.secrets['openai-api-key']),
+      VOYAGE_API_KEY:        ecs.Secret.fromSecretsManager(props.secrets['voyage-api-key']),
       PINECONE_API_KEY:      ecs.Secret.fromSecretsManager(props.secrets['pinecone-api-key']),
     };
 

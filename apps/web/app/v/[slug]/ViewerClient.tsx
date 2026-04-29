@@ -191,6 +191,20 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
   const rec = recs.find(r => r.slideId === slide?.id);
   const slideDurMs = rec?.durationMs || 12_000;
 
+  // Image preloading for the next 2 slides — keeps slide-to-slide
+  // transitions instant without paying the full deck's image weight on
+  // first paint. The DOM only ever renders the current slide.
+  const upcomingImageUrls = useMemo(() => {
+    const urls: string[] = [];
+    for (let i = 1; i <= 2; i++) {
+      const next = slides.find(s => s.idx === idx + i);
+      const slots = (next as any)?.slots;
+      const url = slots?.image?.url || (next as any)?.imageUrl;
+      if (url) urls.push(url);
+    }
+    return urls;
+  }, [slides, idx]);
+
   const narratorVideoRef = useRef<HTMLVideoElement>(null);
   const dwellStartRef = useRef(Date.now());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -432,6 +446,12 @@ function Viewer({ data, email, sessionId }: { data: ShareData; email: string; se
 
       <div className={layoutCls}>
         <main className="viewer-stage">
+          {/* Preload the next 1-2 slide images so transitions feel instant.
+              `display: none` keeps them out of layout but the browser still
+              fetches & decodes them. */}
+          {upcomingImageUrls.map((u, i) => (
+            <img key={`prefetch-${u}-${i}`} src={u} alt="" aria-hidden="true" decoding="async" loading="eager" style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
+          ))}
           <div className={`slide-stage fade-in d1${swap ? ' swap' : ''}`} style={{ position: 'relative' }}>
             {watermarkText && <div className="slide-watermark">{watermarkText}</div>}
             {slide && <RenderSlide slide={slide} />}

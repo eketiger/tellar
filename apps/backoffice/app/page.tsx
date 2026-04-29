@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { boApi, getToken, clearToken } from '@/lib/api';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface Overview {
   usersTotal: number; usersActive: number; workspacesTotal: number; tellersTotal: number;
@@ -45,6 +46,7 @@ export default function Dashboard() {
         </div>
         <div className="bo-right">
           <span>ops · internal</span>
+          <ThemeToggle />
           <button className="btn btn-sm btn-ghost" onClick={signOut}>Sign out</button>
         </div>
       </header>

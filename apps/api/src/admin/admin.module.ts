@@ -3,11 +3,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AuthModule } from '../auth/auth.module';
+import { GdprModule } from '../gdpr/gdpr.module';
 import { PlatformAdminGuard } from '../auth/platform-admin.guard';
 
 @Module({
   imports: [
     AuthModule,
+    GdprModule,
     // Re-register JwtModule here so PlatformAdminGuard can verify tokens with
     // either secret (user JWT via cookie, or superadmin Bearer). Services call
     // verifyAsync with explicit `secret` overrides.

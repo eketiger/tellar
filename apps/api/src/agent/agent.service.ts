@@ -29,8 +29,8 @@ function today() {
 
 @Injectable()
 export class AgentService {
-  // Uniform chat interface across Ollama / OpenAI / Anthropic — chosen at
-  // boot from env vars. See ChatBackend for precedence rules.
+  // Anthropic-only chat backend (Claude). Falls back to mock when
+  // ANTHROPIC_API_KEY is unset so the app boots with no external keys.
   private chat = new ChatBackend();
 
   constructor(

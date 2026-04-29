@@ -1,11 +1,17 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { PlatformAdminGuard } from '../auth/platform-admin.guard';
 import { AdminService } from './admin.service';
+import { GdprService } from '../gdpr/gdpr.service';
 
 @Controller('admin')
 @UseGuards(PlatformAdminGuard)
 export class AdminController {
-  constructor(private svc: AdminService) {}
+  constructor(private svc: AdminService, private gdpr: GdprService) {}
+
+  @Post('gdpr/sweep')
+  sweepDeletions() {
+    return this.gdpr.sweepDeletions();
+  }
 
   @Get('overview')
   overview() {
