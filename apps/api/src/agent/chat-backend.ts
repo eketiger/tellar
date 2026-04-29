@@ -1,21 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
 
 /**
- * Pluggable chat backend. Unifies the three LLM surfaces Tellar supports:
+ * Chat backend — Anthropic-only.
  *
- *   - **Ollama** (or any OpenAI-compatible local server) — set
- *     `OPENAI_BASE_URL=http://localhost:11434/v1` + `OPENAI_MODEL=qwen2.5:7b`.
- *     Explicit setting of OPENAI_BASE_URL wins over everything so "point at
- *     my local LLM" works even if a real Anthropic key is present.
- *   - **Anthropic Claude** — set `ANTHROPIC_API_KEY`.
- *   - **OpenAI (cloud)** — set `OPENAI_API_KEY` without `OPENAI_BASE_URL`.
- *   - **None** — every caller falls back to the mock responder.
+ * Tellar's agent (Ask) and copilot now route exclusively through Claude.
+ * OpenAI/Ollama support was intentionally removed: the product depends on
+ * citation-aware long-context responses, and supporting two providers in
+ * production added prompt drift and silent quality regressions.
  *
- * Override precedence can be forced with `LLM_BACKEND=anthropic|openai` when
- * both credentials are configured (useful for A/B tests).
+ * Configuration:
+ *   - `ANTHROPIC_API_KEY`  required to enable real responses.
+ *   - `ANTHROPIC_MODEL`    optional; defaults to the latest Sonnet.
+ *
+ * When `ANTHROPIC_API_KEY` is unset every caller falls back to the
+ * deterministic mock responder. The app must boot with zero external keys.
  */
-export type ChatKind = 'openai' | 'anthropic' | 'none';
+export type ChatKind = 'anthropic' | 'none';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -28,95 +28,40 @@ export interface ChatCompleteInput {
   maxTokens?: number;
 }
 
-const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 
 export class ChatBackend {
   private kind: ChatKind = 'none';
   private anthropic: Anthropic | null = null;
-  private openai: OpenAI | null = null;
-  private openaiModel = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
-  private anthropicModel = process.env.ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL;
+  private model = process.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL;
 
   constructor() {
-    const baseURL = process.env.OPENAI_BASE_URL?.trim() || undefined;
-    const openaiKey = process.env.OPENAI_API_KEY?.trim() || undefined;
-    const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim() || undefined;
-    const forceBackend = process.env.LLM_BACKEND?.trim()?.toLowerCase();
-
-    // 1) Forced backend via LLM_BACKEND.
-    if (forceBackend === 'openai' && (baseURL || openaiKey)) {
-      this.initOpenAI(baseURL, openaiKey);
-      return;
+    const key = process.env.ANTHROPIC_API_KEY?.trim();
+    if (key) {
+      this.anthropic = new Anthropic({ apiKey: key });
+      this.kind = 'anthropic';
     }
-    if (forceBackend === 'anthropic' && anthropicKey) {
-      this.initAnthropic(anthropicKey);
-      return;
-    }
-
-    // 2) Prefer local Ollama when OPENAI_BASE_URL is explicitly set — that's
-    // the creator saying "I have a local LLM, use it".
-    if (baseURL) {
-      this.initOpenAI(baseURL, openaiKey);
-      return;
-    }
-
-    // 3) Cloud preference: Claude (better for RAG with citations) then OpenAI.
-    if (anthropicKey) {
-      this.initAnthropic(anthropicKey);
-      return;
-    }
-    if (openaiKey) {
-      this.initOpenAI(undefined, openaiKey);
-      return;
-    }
-  }
-
-  private initOpenAI(baseURL: string | undefined, apiKey: string | undefined) {
-    // Ollama ignores the key but the SDK still requires a non-empty string.
-    this.openai = new OpenAI({ apiKey: apiKey || 'ollama-placeholder', baseURL });
-    this.kind = 'openai';
-  }
-
-  private initAnthropic(apiKey: string) {
-    this.anthropic = new Anthropic({ apiKey });
-    this.kind = 'anthropic';
   }
 
   available(): boolean {
-    return this.kind !== 'none';
+    return this.kind === 'anthropic' && this.anthropic !== null;
   }
 
   describe(): string {
-    if (this.kind === 'openai') return `openai:${this.openaiModel}${process.env.OPENAI_BASE_URL ? ' (custom base)' : ''}`;
-    if (this.kind === 'anthropic') return `anthropic:${this.anthropicModel}`;
-    return 'mock';
+    return this.available() ? `anthropic:${this.model}` : 'mock';
   }
 
   async complete({ system, messages, maxTokens = 512 }: ChatCompleteInput): Promise<string> {
-    if (this.kind === 'anthropic' && this.anthropic) {
-      const resp = await this.anthropic.messages.create({
-        model: this.anthropicModel,
-        max_tokens: maxTokens,
-        system,
-        messages,
-      });
-      return resp.content
-        .filter((c: any) => c.type === 'text')
-        .map((c: any) => c.text)
-        .join('\n');
-    }
-    if (this.kind === 'openai' && this.openai) {
-      const r = await this.openai.chat.completions.create({
-        model: this.openaiModel,
-        max_tokens: maxTokens,
-        messages: [
-          { role: 'system', content: system },
-          ...messages.map(m => ({ role: m.role, content: m.content })),
-        ],
-      });
-      return r.choices[0]?.message?.content || '';
-    }
-    throw new Error('No chat backend configured');
+    if (!this.anthropic) throw new Error('Anthropic chat backend not configured');
+    const resp = await this.anthropic.messages.create({
+      model: this.model,
+      max_tokens: maxTokens,
+      system,
+      messages,
+    });
+    return resp.content
+      .filter((c: any) => c.type === 'text')
+      .map((c: any) => c.text)
+      .join('\n');
   }
 }

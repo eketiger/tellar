@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export interface Crumb {
   label: string;
@@ -54,6 +55,7 @@ export function TopBar(props: {
       <div className="topbar-right">
         {props.live && <span className="live-dot">LIVE · 2</span>}
         {props.right}
+        <ThemeToggle />
         <div ref={ref} style={{ position: 'relative' }}>
           <button className="avatar" onClick={e => { e.stopPropagation(); setOpen(o => !o); }} aria-label="Account menu">
             <span>{props.initials}</span>
