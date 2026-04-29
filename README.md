@@ -122,97 +122,33 @@ The admin API lives under `/api/admin/*` and is guarded by `JwtGuard + AdminGuar
 | --- | --- |
 | Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` |
 | GitHub OAuth | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
-| Claude agent (cloud) | `ANTHROPIC_API_KEY` |
-| OpenAI agent/embeddings (cloud) | `OPENAI_API_KEY` |
-| **Self-hosted LLM (Ollama / vLLM)** | `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_EMBED_MODEL` |
+| Claude (chat / agent / copilot / insights / authoring) | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
+| Voyage embeddings (Anthropic's recommended partner) | `VOYAGE_API_KEY`, `VOYAGE_EMBED_MODEL` |
 | Pinecone vector DB | `PINECONE_API_KEY`, `PINECONE_INDEX_NAME` |
 | Stripe billing | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_SCALE` |
 | Mixpanel analytics | `NEXT_PUBLIC_MIXPANEL_TOKEN` (web) |
 
-With nothing set: RAG uses keyword scoring, Stripe checkout flips the plan
-locally, OAuth creates a dev-only mock user, Mixpanel stays inert.
+With nothing set: agent / copilot / insights fall back to deterministic mocks
+and the KB switches to keyword scoring. Stripe checkout flips the plan locally,
+OAuth creates a dev-only mock user, Mixpanel stays inert.
 
 ---
 
-## Running with a local LLM (Ollama)
+## AI backend (Anthropic-only)
 
-Tellar can talk to any OpenAI-compatible inference server instead of the
-Anthropic / OpenAI cloud APIs. This is how you turn on the agent + copilot
-without spending a cent per token and without any data leaving your machine.
-
-### Option 1 — native Ollama (simplest on macOS / Linux)
-
-```bash
-brew install ollama                 # macOS, or curl -fsSL https://ollama.com/install.sh | sh
-ollama serve &                      # keeps running in the background, port 11434
-ollama pull qwen2.5:7b-instruct     # ~5 GB chat model
-ollama pull nomic-embed-text        # ~275 MB embedding model (optional, for KB)
-```
-
-Then in `apps/api/.env`:
+All chat / agent / copilot / insights / authoring paths go through Claude.
+Set `ANTHROPIC_API_KEY` to enable real responses; without it the API
+returns deterministic mock answers so the rest of the app stays usable in
+local dev. Embeddings (optional, for vector retrieval) are powered by
+Voyage AI — Anthropic's recommended embeddings partner. Without it, the
+KB retriever falls back to keyword scoring.
 
 ```bash
-OPENAI_BASE_URL="http://localhost:11434/v1"
-OPENAI_MODEL="qwen2.5:7b-instruct"
-OPENAI_EMBED_MODEL="nomic-embed-text"
-OPENAI_API_KEY="ollama-placeholder"   # required by the SDK, Ollama ignores it
+ANTHROPIC_API_KEY="sk-ant-…"
+ANTHROPIC_MODEL=""              # default: claude-sonnet-4-20250514
+VOYAGE_API_KEY=""               # optional, for vector retrieval
+VOYAGE_EMBED_MODEL=""           # default: voyage-3
 ```
-
-Restart the API. On boot you'll see a log line:
-
-```
-[agent] chat backend = openai:qwen2.5:7b-instruct (custom base)
-```
-
-### Option 2 — Ollama in Docker (portable)
-
-```bash
-docker compose -f docker-compose.ollama.yml up -d
-```
-
-Runs the `ollama/ollama` image on port 11434, with a one-shot `ollama-pull`
-side-car that downloads `qwen2.5:7b-instruct` + `nomic-embed-text` on first
-boot. Override models via env:
-
-```bash
-OLLAMA_CHAT_MODEL=qwen2.5:14b-instruct \
-  docker compose -f docker-compose.ollama.yml up -d
-```
-
-Then use the same `OPENAI_BASE_URL="http://localhost:11434/v1"` in the API
-env.
-
-### Option 3 — Production (AWS via CDK)
-
-`infra/lib/stacks/ollama-stack.ts` ships a CDK stack that runs Ollama on a
-single GPU EC2 instance inside the VPC. To enable it, set the `ollama` block
-in `infra/lib/config.ts`:
-
-```ts
-export const staging: AppConfig = {
-  // ...
-  ollama: {
-    instanceType: 'g5.xlarge',        // or g4dn.xlarge (~$380/mo) or t3.xlarge (CPU)
-    chatModel: 'qwen2.5:7b-instruct',
-    embedModel: 'nomic-embed-text',
-    diskGiB: 120,
-  },
-};
-```
-
-Then `cd infra && pnpm cdk deploy --all`. The stack publishes the URL under
-`/tellar/<env>/OPENAI_BASE_URL` in SSM Parameter Store and the Fargate task
-automatically picks it up on next redeploy. Leave `ollama` unset and the
-stack isn't created — no GPU cost.
-
-### Backend precedence
-
-When the API boots it picks one backend in this order:
-1. `LLM_BACKEND=openai|anthropic` hard override.
-2. `OPENAI_BASE_URL` set → local LLM (wins over any Anthropic key).
-3. `ANTHROPIC_API_KEY` set → Claude.
-4. `OPENAI_API_KEY` set → OpenAI cloud.
-5. None set → deterministic mock responder (still useful for demos).
 
 ---
 

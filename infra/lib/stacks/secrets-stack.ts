@@ -13,7 +13,7 @@ export type AppSecretKey =
   | 'stripe-secret-key'
   | 'stripe-webhook-secret'
   | 'anthropic-api-key'
-  | 'openai-api-key'
+  | 'voyage-api-key'
   | 'pinecone-api-key';
 
 const SECRET_KEYS: AppSecretKey[] = [
@@ -25,7 +25,7 @@ const SECRET_KEYS: AppSecretKey[] = [
   'stripe-secret-key',
   'stripe-webhook-secret',
   'anthropic-api-key',
-  'openai-api-key',
+  'voyage-api-key',
   'pinecone-api-key',
 ];
 

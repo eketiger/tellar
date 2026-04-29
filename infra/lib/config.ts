@@ -1,10 +1,3 @@
-export interface OllamaConfig {
-  instanceType: string;   // e.g. 'g5.xlarge' (GPU) or 't3.xlarge' (CPU)
-  chatModel: string;      // e.g. 'qwen2.5:7b-instruct'
-  embedModel?: string;    // e.g. 'nomic-embed-text'
-  diskGiB: number;        // root EBS size — models are big
-}
-
 export interface AppConfig {
   appName: string;
   environment: 'staging' | 'production';
@@ -18,10 +11,6 @@ export interface AppConfig {
   alarmEmail: string;
   githubOrg: string;
   githubRepo: string;
-  /** Opt-in self-hosted LLM. When set, `bin/app.ts` includes OllamaStack
-   *  and the ECS task env is auto-wired via SSM Parameter Store. Unset =
-   *  no stack, no cost. */
-  ollama?: OllamaConfig;
 }
 
 const common = {

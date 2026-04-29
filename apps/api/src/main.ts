@@ -31,11 +31,28 @@ async function bootstrap() {
     }
     return json({ limit: '10mb' })(req, res, next);
   });
-  const origins = [
-    ...(process.env.WEB_ORIGIN || 'http://localhost:3000').split(','),
-    ...(process.env.BACKOFFICE_ORIGIN || 'http://localhost:3001').split(','),
-  ];
-  app.enableCors({ origin: origins, credentials: true });
+  // CORS allow-list. Hosts are deduped + lower-cased; entries can be
+  // comma-separated to support a list of preview/staging hosts per env.
+  const origins = Array.from(
+    new Set(
+      [
+        ...(process.env.WEB_ORIGIN || 'http://localhost:3000').split(','),
+        ...(process.env.BACKOFFICE_ORIGIN || 'http://localhost:3001').split(','),
+        ...(process.env.VIEWER_ORIGIN || '').split(','),
+      ]
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(s => s.toLowerCase()),
+    ),
+  );
+  // The viewer carries a per-share token in `x-share-token`. Without an
+  // explicit allow-list entry, browsers strip the header on cross-origin
+  // requests, which would silently 401 the gate-authorized fetch.
+  app.enableCors({
+    origin: origins,
+    credentials: true,
+    allowedHeaders: ['content-type', 'authorization', 'x-share-token'],
+  });
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.setGlobalPrefix('api');
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
