@@ -147,6 +147,10 @@ model Teller {
   deletedAt    DateTime?
   vectorizedAt DateTime?
   vectorStatus String?
+  // SHA-256 of the indexed bundle text. When set, KnowledgeBaseService.indexTeller
+  // skips re-embedding if the new bundle hash matches — avoids paying for
+  // Voyage embeddings on every save.
+  vectorContentHash String?
   isPublished  Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

@@ -56,22 +56,37 @@ export class GdprService {
       where: { deletionRequestedAt: { not: null, lte: cutoff } },
       select: { id: true },
     });
-    let deleted = 0;
+    let scrubbed = 0;
     for (const u of stale) {
-      // Cascading deletes are encoded at the application layer because we
-      // run PlanetScale in `relationMode = "prisma"` (no FK constraints).
-      // Order matters: drop dependent rows before the user row itself.
+      // PII-scrub instead of full row delete: a user's tellers/workspaces may
+      // be shared with other members, so dropping ownerId-linked rows would
+      // cascade well beyond what GDPR requires. The contract is to remove
+      // identifiable data — id is kept as a tombstone so dangling references
+      // (Workspace.ownerId, Membership.userId) remain valid.
+      //
+      // Cascades are at the application layer because PlanetScale is
+      // `relationMode = "prisma"` (no FK constraints).
+      await this.prisma.session.deleteMany({ where: { userId: u.id } });
       await this.prisma.cookieConsent.deleteMany({ where: { userId: u.id } });
-      await this.prisma.event.deleteMany({ where: { userId: u.id } });
       await this.prisma.tellerAsk.deleteMany({ where: { userId: u.id } });
       await this.prisma.copilotUsage.deleteMany({ where: { userId: u.id } });
       await this.prisma.askUsage.deleteMany({ where: { userId: u.id } });
-      await this.prisma.session.deleteMany({ where: { userId: u.id } });
-      await this.prisma.membership.deleteMany({ where: { userId: u.id } });
-      await this.prisma.user.delete({ where: { id: u.id } });
-      deleted++;
+      const tomb = `deleted-${u.id}@deleted.local`;
+      await this.prisma.user.update({
+        where: { id: u.id },
+        data: {
+          email: tomb,
+          name: 'Deleted User',
+          passwordHash: null,
+          providerId: null,
+          avatarUrl: null,
+          stripeCustomerId: null,
+          isSuspended: true,
+        },
+      });
+      scrubbed++;
     }
-    return { deleted, cutoff: cutoff.toISOString() };
+    return { scrubbed, cutoff: cutoff.toISOString() };
   }
 
   async acceptConsent(userId: string | null, version: string, ipHash?: string) {
