@@ -1,6 +1,7 @@
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -12,11 +13,29 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({
   namespace: '/ws',
-  cors: { origin: (process.env.WEB_ORIGIN || 'http://localhost:3000').split(','), credentials: true },
+  cors: {
+    origin: [
+      ...(process.env.WEB_ORIGIN || 'http://localhost:3000').split(','),
+      ...(process.env.VIEWER_ORIGIN || '').split(','),
+    ].map(s => s.trim()).filter(Boolean),
+    credentials: true,
+  },
 })
-export class RealtimeGateway {
+export class RealtimeGateway implements OnGatewayInit {
   @WebSocketServer() server!: Server;
+  private liveTickHandle: ReturnType<typeof setInterval> | null = null;
   constructor(private jwt: JwtService, private prisma: PrismaService) {}
+
+  afterInit() {
+    // Broadcast the live socket count every 4s so the topbar LIVE
+    // indicator reflects reality. Drift-tolerant: clients reconnecting
+    // will receive the next tick within 4s of the gap.
+    this.liveTickHandle = setInterval(() => {
+      const sockets = this.server?.sockets;
+      const count = sockets ? sockets.sockets.size : 0;
+      try { this.server?.emit('live:count', { count }); } catch {/* noop */}
+    }, 4000);
+  }
 
   @SubscribeMessage('share:subscribe')
   async subscribe(

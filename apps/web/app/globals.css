@@ -113,6 +113,8 @@ body::after {
   content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--good);
   box-shadow: 0 0 10px var(--good); animation: pulse 1.6s ease-in-out infinite;
 }
+.live-dot.offline { color: var(--ink-3); }
+.live-dot.offline::before { background: var(--ink-3); box-shadow: none; animation: none; }
 @keyframes pulse { 0%,100% { opacity:.4; transform:scale(1); } 50% { opacity:1; transform:scale(1.3); } }
 .avatar {
   width: 28px; height: 28px; border-radius: 50%;
@@ -283,3 +285,43 @@ body::after {
 .shell { position: relative; z-index: 3; padding: 28px; max-width: 1600px; margin: 0 auto; padding-bottom: 100px; }
 .grid-2 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px; }
 @media (max-width: 1100px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* WCAG 2.4.7 — every interactive element needs a visible focus ring.
+   :focus-visible only fires for keyboard nav so mouse users keep the
+   clean look. Outline-offset puts the ring outside the element so it
+   never fights the existing border styling. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+button:focus-visible,
+[role='button']:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.field-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Loading skeleton — used by dashboard / accounts / settings shells. */
+.skel {
+  background: linear-gradient(90deg, var(--panel-2) 0%, var(--panel-3) 50%, var(--panel-2) 100%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.4s linear infinite;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+}
+@keyframes skel-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+}

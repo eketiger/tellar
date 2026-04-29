@@ -46,6 +46,10 @@ body::before {
 .bo-head p { font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: 15px; margin-top: 8px; }
 
 .bo-nav { display: flex; gap: 4px; padding: 6px; background: var(--topbar-bg); border: 1px solid var(--line-2); border-radius: 40px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 22px; width: fit-content; }
+
+/* WCAG 2.4.7 focus ring */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+input:focus-visible, textarea:focus-visible, .field-input:focus-visible { outline-offset: 1px; }
 .bo-nav a { padding: 8px 14px; color: var(--ink-2); border-radius: 40px; transition: all .2s; }
 .bo-nav a:hover { color: var(--ink); background: var(--panel); }
 .bo-nav a.active { color: #0c0d0f; background: var(--accent); }

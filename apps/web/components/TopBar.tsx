@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useRealtimePresence } from '@/lib/use-realtime-presence';
 
 export interface Crumb {
   label: string;
@@ -22,6 +23,7 @@ export function TopBar(props: {
   isAdmin?: boolean;
 }) {
   const router = useRouter();
+  const { connected, liveCount } = useRealtimePresence();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -53,7 +55,11 @@ export function TopBar(props: {
         </nav>
       </div>
       <div className="topbar-right">
-        {props.live && <span className="live-dot">LIVE · 2</span>}
+        {props.live !== false && (
+          <span className={`live-dot${connected ? '' : ' offline'}`} title={connected ? 'Realtime connected' : 'Reconnecting…'}>
+            {connected ? `LIVE${liveCount != null ? ` · ${liveCount}` : ''}` : 'OFFLINE'}
+          </span>
+        )}
         {props.right}
         <ThemeToggle />
         <div ref={ref} style={{ position: 'relative' }}>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Fraunces, JetBrains_Mono, Inter_Tight } from 'next/font/google';
 import './globals.css';
 import { CookieBanner } from '@/components/CookieBanner';
+import { CommandPalette } from '@/components/CommandPalette';
 import { themeBootstrap } from '@/components/ThemeToggle';
 
 // next/font self-hosts these from Google Fonts at build time, ships
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
+        <CommandPalette />
         <CookieBanner />
       </body>
     </html>
