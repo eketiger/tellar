@@ -8,6 +8,7 @@ import { TopBar } from '@/components/TopBar';
 import { NavDock } from '@/components/NavDock';
 import { LiveFunnel } from './LiveFunnel';
 import { SessionRecordings } from './SessionRecordings';
+import { ClaudeInsights } from './ClaudeInsights';
 import './dashboard.css';
 
 const AVATAR_COLORS = [
@@ -274,6 +275,8 @@ export default async function TellerDashboard({ params }: { params: Promise<{ id
             </section>
           </div>
         </div>
+
+        <ClaudeInsights tellerId={id} />
 
         <section className="panel fade-in d4" style={{ marginTop: 28 }}>
           <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />

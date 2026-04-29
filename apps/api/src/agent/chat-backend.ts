@@ -1,34 +1,75 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
- * Chat backend — Anthropic-only.
+ * Anthropic chat backend — single source of truth for every Claude call.
  *
- * Tellar's agent (Ask) and copilot now route exclusively through Claude.
- * OpenAI/Ollama support was intentionally removed: the product depends on
- * citation-aware long-context responses, and supporting two providers in
- * production added prompt drift and silent quality regressions.
+ * Tellar uses Claude for: agent Ask, copilot rewrites, tellar insights,
+ * and the authoring (conversational tellar editor). All four paths share
+ * this class so we apply the same best practices everywhere:
  *
- * Configuration:
- *   - `ANTHROPIC_API_KEY`  required to enable real responses.
- *   - `ANTHROPIC_MODEL`    optional; defaults to the latest Sonnet.
- *
- * When `ANTHROPIC_API_KEY` is unset every caller falls back to the
- * deterministic mock responder. The app must boot with zero external keys.
+ *   - **Prompt caching** (`cache_control: { type: 'ephemeral' }`) on the
+ *     system prompt and any large stable context (full slide deck, KB,
+ *     transcripts). Reduces per-request cost dramatically when the same
+ *     deck is queried repeatedly.
+ *   - **Retries** on transient 429/529 with exponential backoff, capped
+ *     at three attempts. Anthropic's API surfaces overloads cleanly so
+ *     we propagate the error after the cap.
+ *   - **Tool use** support — pass `tools` and the SDK returns
+ *     `tool_use` blocks; the caller orchestrates the loop.
+ *   - **Mock fallback** when ANTHROPIC_API_KEY is unset, so the app
+ *     boots with no external dependencies (per CLAUDE.md).
  */
 export type ChatKind = 'anthropic' | 'none';
 
+export type CacheBreakpoint = { type: 'ephemeral' };
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
-  content: string;
+  /** Either a plain string or a structured content array (Claude tool-use). */
+  content: any;
+}
+
+/** A cacheable chunk of system text. Marking the *last* chunk with
+ *  `cache: { type: 'ephemeral' }` tells Claude to cache up to that point.
+ *  Subsequent calls with the same prefix hit the cache. */
+export interface SystemBlock {
+  text: string;
+  cache?: CacheBreakpoint;
+}
+
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  input_schema: any;
 }
 
 export interface ChatCompleteInput {
-  system: string;
+  system: string | SystemBlock[];
   messages: ChatMessage[];
   maxTokens?: number;
+  tools?: ToolDefinition[];
+  /** Force the model to pick a specific tool, or any tool. */
+  tool_choice?: { type: 'auto' } | { type: 'any' } | { type: 'tool'; name: string };
+  /** Hard cap on retries for transient errors. Default 2. */
+  retries?: number;
+}
+
+export interface ChatCompleteOutput {
+  /** Concatenated text blocks (excluding tool_use). */
+  text: string;
+  /** Raw content array for callers that need tool_use blocks. */
+  content: any[];
+  stopReason: string | null;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
+  };
 }
 
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+const TRANSIENT_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504, 529]);
 
 export class ChatBackend {
   private kind: ChatKind = 'none';
@@ -51,17 +92,66 @@ export class ChatBackend {
     return this.available() ? `anthropic:${this.model}` : 'mock';
   }
 
-  async complete({ system, messages, maxTokens = 512 }: ChatCompleteInput): Promise<string> {
+  /** Backwards-compatible thin completion that returns just the text. */
+  async complete(input: ChatCompleteInput): Promise<string> {
+    const r = await this.completeRich(input);
+    return r.text;
+  }
+
+  /** Full-shape completion for callers that need tool_use / usage stats. */
+  async completeRich({
+    system,
+    messages,
+    maxTokens = 512,
+    tools,
+    tool_choice,
+    retries = 2,
+  }: ChatCompleteInput): Promise<ChatCompleteOutput> {
     if (!this.anthropic) throw new Error('Anthropic chat backend not configured');
-    const resp = await this.anthropic.messages.create({
-      model: this.model,
-      max_tokens: maxTokens,
-      system,
-      messages,
-    });
-    return resp.content
-      .filter((c: any) => c.type === 'text')
-      .map((c: any) => c.text)
-      .join('\n');
+
+    // System: a string is auto-converted to a single ephemeral-cache block.
+    // An explicit SystemBlock[] lets callers cache only stable prefixes.
+    const systemPayload = Array.isArray(system)
+      ? system.map(s => ({
+          type: 'text',
+          text: s.text,
+          ...(s.cache ? { cache_control: s.cache } : {}),
+        }))
+      : [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } as const }];
+
+    let attempt = 0;
+    while (true) {
+      try {
+        const resp = await this.anthropic.messages.create({
+          model: this.model,
+          max_tokens: maxTokens,
+          system: systemPayload as any,
+          messages: messages as any,
+          ...(tools ? { tools: tools as any } : {}),
+          ...(tool_choice ? { tool_choice: tool_choice as any } : {}),
+        });
+        const text = (resp.content || [])
+          .filter((c: any) => c.type === 'text')
+          .map((c: any) => c.text)
+          .join('\n');
+        return {
+          text,
+          content: resp.content as any[],
+          stopReason: (resp as any).stop_reason ?? null,
+          usage: {
+            inputTokens: (resp.usage as any)?.input_tokens ?? 0,
+            outputTokens: (resp.usage as any)?.output_tokens ?? 0,
+            cacheCreationInputTokens: (resp.usage as any)?.cache_creation_input_tokens,
+            cacheReadInputTokens: (resp.usage as any)?.cache_read_input_tokens,
+          },
+        };
+      } catch (e: any) {
+        const status: number | undefined = e?.status ?? e?.response?.status;
+        if (attempt >= retries || !status || !TRANSIENT_STATUSES.has(status)) throw e;
+        const backoffMs = 250 * Math.pow(2, attempt) + Math.floor(Math.random() * 100);
+        await new Promise(r => setTimeout(r, backoffMs));
+        attempt++;
+      }
+    }
   }
 }

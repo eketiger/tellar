@@ -22,7 +22,9 @@ import { api } from '@/lib/api';
 import { NarrationPanel } from './NarrationPanel';
 import { NotesPanel } from './NotesPanel';
 import { KbPanel } from './KbPanel';
+import { useRouter } from 'next/navigation';
 import { CopilotPanel } from './CopilotPanel';
+import { AuthoringPanel } from './AuthoringPanel';
 import { LayoutPicker } from './LayoutPicker';
 import { PresentMode } from './PresentMode';
 import { MarkdownImport, type ParsedSlide } from './MarkdownImport';
@@ -47,7 +49,7 @@ interface Slide {
 }
 interface Teller { id: string; title: string; slides: Slide[]; kbSources: any[]; recordings: any[]; }
 
-type Tab = 'copilot' | 'knowledge' | 'recording' | 'notes';
+type Tab = 'agent' | 'copilot' | 'knowledge' | 'recording' | 'notes';
 
 interface SlideImage { id: string; name: string; url: string; }
 
@@ -102,9 +104,10 @@ function resolveSlotsFromSlide(s: Slide | undefined): Record<string, any> {
 }
 
 export function EditorClient({ teller: initial }: { teller: Teller }) {
+  const router = useRouter();
   const [teller, setTeller] = useState<Teller>(initial);
   const [activeId, setActiveId] = useState<string | undefined>(initial.slides[0]?.id);
-  const [tab, setTab] = useState<Tab>('copilot');
+  const [tab, setTab] = useState<Tab>('agent');
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
   const [toast, setToast] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
@@ -703,6 +706,7 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
 
         <aside className="right-panel">
           <div className="rp-tabs">
+            <button className={`rp-tab${tab === 'agent' ? ' active' : ''}`} onClick={() => setTab('agent')}>agent</button>
             <button className={`rp-tab${tab === 'copilot' ? ' active' : ''}`} onClick={() => setTab('copilot')}>copilot</button>
             <button className={`rp-tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>notes</button>
             <button className={`rp-tab${tab === 'knowledge' ? ' active' : ''}`} onClick={() => setTab('knowledge')}>
@@ -719,6 +723,12 @@ export function EditorClient({ teller: initial }: { teller: Teller }) {
                 slide={active}
                 totalSlides={teller.slides.length}
                 onChange={(notes) => active && queueSave(active.id, { notes })}
+              />
+            )}
+            {tab === 'agent' && (
+              <AuthoringPanel
+                tellerId={teller.id}
+                onApplied={() => router.refresh()}
               />
             )}
             {tab === 'copilot' && (
